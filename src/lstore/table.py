@@ -70,8 +70,24 @@ class Table:
             record.rid = -1 #Invalidate each associated tail record 
         base_record = self.bp_directory[self.key_rid[primary_key]]  #Find the physical record using the given key. 
         base_record.rid = -1 #Invalidate the base record rid 
-       
 
+    def update(self, primary_key, *columns):
+        
+        base_record = self.bp_directory[self.key_rid[primary_key]]
+        tail_record = base_record
+        tail_record.columns = columns 
+        for i,value in enumerate(columns):
+            if value != None:
+                if self.tail_pages[i][self.tp_index[i]].has_capacity():
+                    self.tail_pages[i][self.tp_index[i]].write(value)
+                    tail_record.rid[i] = (self.tp_index[i], self.tail_pages[i][self.tp_index[i]].numEntries - 1)
+                else:
+                    self.tail_pages[i].append(Page())
+                    self.tp_index[i] += 1 
+                    self.tail_pages[i][self.tp_index[i]].write(value)        
+                    tail_record.rid[i] = (self.tp_index[i], self.tail_pages[i][self.tp_index[i]].numEntries - 1)
+        self.tp_directory[base_record.rid].append(tail_record)
+        self.key_rid[primary_key].append(self.t)
        
     
     
