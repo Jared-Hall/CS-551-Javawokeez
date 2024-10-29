@@ -22,7 +22,7 @@ class Page:
         self.tail = 0
         self.data = None
         self.capacity = 0
-        if(type(capacity) == type(int) and capacity < 0):
+        if(type(capacity) == type(1) and capacity > 0):
             self.data = bytearray(capacity)
             self.capacity = capacity
         else:
@@ -51,7 +51,7 @@ class Page:
         """
         end = self.tail + len(data)
         self.data[self.tail:end] = data
-        self.rIndex[self.numEntries: (self.tail, end)]
+        self.rIndex[self.numEntries] = (self.tail, end)
         self.tail = end
         self.numEntries += 1
 
@@ -66,3 +66,18 @@ class Page:
             return self.data[bound[0]:bound[1]]
         else:
             return False
+        
+
+
+if(__name__== "__main__"):
+    p = Page(20)
+    print(p.capacity)
+    a = bytearray('Hello', 'utf-8')
+    b = bytearray('World', 'utf-8')
+    p.write(a)
+    print(p.data)
+    p.write(b)
+    print(p.data)
+    print(p.read(0).decode('utf-8'))
+    print(p.read(1).decode('utf-8'))
+
