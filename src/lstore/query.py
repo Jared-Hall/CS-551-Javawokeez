@@ -11,7 +11,7 @@ class Query:
     """
     def __init__(self, table):
         self.table = table
-        pass
+        
 
     
     """
@@ -21,7 +21,8 @@ class Query:
     # Return False if record doesn't exist or is locked due to 2PL
     """
     def delete(self, primary_key):
-        pass
+        err = self.table.delete(primary_key)
+        return err == None
     
     
     """
@@ -31,7 +32,9 @@ class Query:
     """
     def insert(self, *columns):
         schema_encoding = '0' * self.table.num_columns
-        pass
+        # TODO: Add schema encoding column to the list of columns 
+        self.table.insert(columns)
+        
 
     
     """
@@ -44,7 +47,18 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
-        pass
+        columnsToReturn = []
+
+        #Select all records where column[search_key_index] = search_key        
+        record_locations = self.table.index.locate(search_key, search_key_index)
+
+        # Assuming record_locations is an array of rids:
+        for rid in record_locations:            
+            record = self.table.bp_directory[rid]
+            if record != None:                
+                columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))
+
+        return columnsToReturn
 
     
     """
@@ -58,8 +72,41 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
-        pass
+        columnsToReturn = []
 
+        #Select all records where column[0] = search_key        
+        record_locations = self.table.index.locate(search_key, search_key_index)
+
+        
+        # Assuming record_locations is an array of rids:
+        for rid in record_locations:   
+
+            # If no updates to the record, add base record columns for the record         
+            if rid not in self.table.tp_directory: 
+                record = self.table.bp_directory[rid]
+                if record != None:                    
+                    columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))
+                continue
+
+            tail_records = self.table.tp_directory[rid]
+
+            # If at least r = relative_version of records are present, add the rth version
+            if len(tail_records) > abs(relative_version): 
+                record = tail_records[len(tail_records) - abs(relative_version) - 1]
+                columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))
+
+            # If there haven't been r updates yet, get the closest one to r
+            if len(tail_records) > abs(relative_version): 
+                record = tail_records[0]
+                columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))                
+        return columnsToReturn
+
+    def FilterColumns(self, columns, projected_columns_index):
+        columnsToReturn = []
+        for i, value in enumerate(columns):
+            if projected_columns_index[i] == 1:
+                columnsToReturn.append(value)
+        return columnsToReturn
     
     """
     # Update a record with specified key and columns
@@ -79,7 +126,20 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum(self, start_range, end_range, aggregate_column_index):
-        pass
+
+        summationResult = 0
+
+        record_locations = self.table.index.locate_range(start_range, end_range, 0)
+        
+        if len(record_locations) == 0:
+            return False
+        
+        for rid in record_locations:
+            latestRecord  = self.table.bp_directory[rid]
+            if rid in self.table.tp_directory and len(self.table.tp_directory[rid]) > 0: 
+                latestRecord = self.table.tp_directory[rid][len(self.table.tp_directory[rid]) - 1]
+            summationResult += latestRecord.columns[aggregate_column_index]
+        return summationResult
 
     
     """
@@ -92,7 +152,22 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
-        pass
+        summationResult = 0
+
+        record_locations = self.table.index.locate_range(start_range, end_range, 0)
+        
+        if len(record_locations) == 0:
+            return False
+        
+        for rid in record_locations:
+            relativeRecord  = self.table.bp_directory[rid]
+            if rid not in self.table.tp_directory or len(self.table.tp_directory[rid]) < relative_version:
+                return False
+            
+            relativeRecord = self.table.tp_directory[rid][len(self.table.tp_directory[rid]) - relative_version - 1]
+            summationResult += relativeRecord.columns[aggregate_column_index]
+
+        return summationResult
 
     
     """
