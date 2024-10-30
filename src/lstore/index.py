@@ -10,7 +10,7 @@ A data strucutre holding indices for various columns of a table.
 Key column should be indexd by default, other columns can be indexed through this object. 
 Indices are usually B-Trees, but other data structures can be used as well.
 """
-from lib.bTree import *
+from lstore.bTree import BPlusTree
 
 class Index:
     """
@@ -30,7 +30,7 @@ class Index:
             output <type>: <description>
         """
         self.table = table
-        self.indices = [None] * table.mum_columns
+        self.indices = [None] * table.num_columns
         self.indices[self.table.key] = BPlusTree()
 
         #Step-01: Build the record index (b+ tree)
@@ -160,3 +160,6 @@ class Index:
         """
         if self.column_indices[cID] is not None:
             self.column_indices[cID] = None 
+
+if(__name__=="__main__"):
+    index = Index()
