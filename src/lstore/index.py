@@ -21,14 +21,18 @@ class Index:
     (index) -> HashMap of columns for the table: {cID:<pointer_to_column>}
     """
 
-    def __init__(self, num_columns):
+    def __init__(self, table):
         """
         Description: the constructor for the index.
         Inputs: 
             varName <type>: <description>
         Outputs:
             output <type>: <description>
-        """        
+        """
+        self.table = table
+        self.indices = [None] * table.mum_columns
+        self.indices[self.table.key] = BPlusTree()
+
         #Step-01: Build the record index (b+ tree)
         self.tree = BPlusTree()
         #step-02: Build Hashmap of columns from table.num_columns
@@ -66,7 +70,7 @@ class Index:
         self.column_indices[cID] = columnPointer
 
 
-    def _createIndex(self, recordPointer):
+    def _createIndex(self, key, value):
         """
         Description: Inserts the record into the b+ Tree and creates a UID, which is then returned
         Inputs: 
@@ -74,17 +78,7 @@ class Index:
         Outputs:
             output <type>: <description>
         """
-        return self.tree.insert()
-
-    def _deleteIndex(self, rid):
-        """
-        Description: remove an entry from the index keyed by rid. boolean function returns True if successful, else false if key doesn't exist.
-        Inputs: 
-            varName <type>: <description>
-        Outputs:
-            output <type>: <description>
-        """
-        return self.tree.delete(rid)
+        return self.tree.insert(key, value)
 
     def _dropColumn(self, cID):
         """
@@ -96,8 +90,14 @@ class Index:
         """
         del self.column_indices[cID]
 
+    def updateIndex(self, key, value, cID):
+        if(self.indices[cID].query(key) == False):
+            values = []
+            values.append(value)
+            self.indices[cID].insert(key, values)
 
-    def locate(self, columnID, value):
+
+    def _locate(self, columnID, value):
         """
         Description: returns the location of all records with the given value on column by columnID
         Inputs: 
@@ -110,7 +110,7 @@ class Index:
         return self.column_indices[columnID].get(value, [])
 
 
-    def locate_range(self, begin, end, cID):
+    def _locate_range(self, begin, end, cID):
         """
         Description: Returns the RIDs of all records with values in column specified by cID between "begin" and "end"
         Inputs: 
@@ -127,6 +127,17 @@ class Index:
         
         return rids
 
+    def locate(self, columnID, value):
+        tree = self.indices[columnID]
+        retVal = tree.query(value)
+        if(retVal != False):
+            return retVal
+        else:
+            return False
+    
+    def locateRange(self, start, stop, cID):
+        return self.indices[cID].rangeQuery(start, stop)
+    
 #=======================================================================================================================
     def create_index(self, cID):
         """
