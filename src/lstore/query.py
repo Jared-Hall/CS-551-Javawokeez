@@ -47,19 +47,31 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
+        record_locations = self.table.key_rid[search_key]  
         columnsToReturn = []
+        if record_locations[0] in self.table.tp_directory:
+            for record in self.table.tp_directory[record_locations[0]]:
+                columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))
 
-        #Select all records where column[search_key_index] = search_key        
+        else:
+            columnsToReturn.append(self.FilterColumns(self.table.bp_directory[record_locations[0]].columns, projected_columns_index)) 
+            #print(record)
+        
+        return columnsToReturn
+        """
+        Select all records where column[search_key_index] = search_key        
         record_locations = self.table.index.locate(search_key, search_key_index)
-
-        # Assuming record_locations is an array of rids:
+       
+         Assuming record_locations is an array of rids:
+        
         for rid in record_locations:            
             record = self.table.bp_directory[rid]
             if record != None:                
                 columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))
 
         return columnsToReturn
-
+        """
+        
     
     """
     # Read matching record with specified search key
@@ -114,7 +126,8 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
-        pass
+        self.table.update(primary_key, *columns)
+       
 
     
     """
@@ -126,20 +139,27 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum(self, start_range, end_range, aggregate_column_index):
-
         summationResult = 0
-
-        record_locations = self.table.index.locate_range(start_range, end_range, 0)
-        
+        keys = [start_range + i for i in range(end_range - start_range)] 
+        record_locations = [self.table.key_rid[key][0] for key in keys]
+        for rid in record_locations:
+            if rid in self.table.tp_directory: 
+                summationResult += self.table.tp_directory[rid][-1].columns[0][aggregate_column_index] 
+            else:
+                summationResult += self.table.bp_directory[rid].columns[0][aggregate_column_index]
         if len(record_locations) == 0:
             return False
-        
+      
+        """
+        record_locations = self.table.index.locate_range(start_range, end_range, 0)
         for rid in record_locations:
             latestRecord  = self.table.bp_directory[rid]
             if rid in self.table.tp_directory and len(self.table.tp_directory[rid]) > 0: 
                 latestRecord = self.table.tp_directory[rid][len(self.table.tp_directory[rid]) - 1]
+            
             summationResult += latestRecord.columns[aggregate_column_index]
         return summationResult
+        """
 
     
     """
@@ -158,6 +178,8 @@ class Query:
         
         if len(record_locations) == 0:
             return False
+        
+     
         
         for rid in record_locations:
             relativeRecord  = self.table.bp_directory[rid]
