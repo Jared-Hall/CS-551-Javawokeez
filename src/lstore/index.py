@@ -1,5 +1,5 @@
 """
-Documentation for the page class.
+Documentation for the index class.
 Author: Nabil Abdel-Rahman <email>, Jared Hall jhall10@uoregon.edu
 Description:
     This file contains our implementation of the core storage data structure for our L-Store database.
@@ -32,7 +32,7 @@ class Index:
         self.indices = [None] *  table.num_columns
 
         #Step-01: Build the record index (b+ tree)
-        
+
         #step-02: Build Hashmap of columns from table.num_columns
         pass
 
