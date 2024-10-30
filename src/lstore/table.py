@@ -24,6 +24,10 @@ class Record:
         self.columns = columns
         self.indirection = None
 
+    def copy(self):
+        new_cols = [column for column in self.columns]
+        return Record(self.rid, self.key, new_cols)
+
 
 class Table:
 
@@ -98,7 +102,7 @@ class Table:
         if base_record.rid in self.tp_directory:
             latest_tail = self.tp_directory[base_record.rid][-1]
         else:
-            latest_tail = base_record
+            latest_tail = base_record.copy()
         #tail_record = base_record
         tail_record = Record((), latest_tail.key, latest_tail.columns)
         #tail_record.columns = columns 

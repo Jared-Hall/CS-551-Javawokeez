@@ -126,12 +126,17 @@ class Query:
         recordToReturn = []
         
         record_locations = self.table.key_rid[search_key] 
-        #print(record_locations)
+        #records = []
+        
+            
         records = [self.table.bp_directory[record_locations[0]]] 
-        if record_locations[0] in self.table.tp_directory:
+        if record_locations[0] in self.table.tp_directory:   
+            if relative_version == 0:
+                return self.table.tp_directory[record_locations[0]][-1]
             for tailrecord in self.table.tp_directory[record_locations[0]]:
                 records.append(tailrecord)
-       
+
+
         if len(records) == 1:
             return records
         
