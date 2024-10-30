@@ -84,6 +84,7 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
+        """
         columnsToReturn = []
 
         #Select all records where column[0] = search_key        
@@ -112,6 +113,22 @@ class Query:
                 record = tail_records[0]
                 columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))                
         return columnsToReturn
+        """
+        
+            
+        recordToReturn = []
+        
+        record_locations = self.table.key_rid[search_key] 
+        print(record_locations)
+        print(self.table.tp_directory[record_locations[0]])
+        for rid in record_locations:
+            print(rid in self.table.bp_directory)
+        loc = record_locations[relative_version] 
+        if loc in self.table.bp_directory: 
+            return self.table.bp_directory[loc] 
+        else:
+            pass
+
 
     def FilterColumns(self, columns, projected_columns_index):
         columnsToReturn = []
@@ -144,9 +161,10 @@ class Query:
         record_locations = [self.table.key_rid[key][0] for key in keys]
         for rid in record_locations:
             if rid in self.table.tp_directory: 
-                summationResult += self.table.tp_directory[rid][-1].columns[0][aggregate_column_index] 
+                summationResult += self.table.tp_directory[rid][-1].columns[aggregate_column_index] 
             else:
-                summationResult += self.table.bp_directory[rid].columns[0][aggregate_column_index]
+                #print(self.table.bp_directory[rid].columns, self.table.bp_directory[rid].columns[0])
+                summationResult += self.table.bp_directory[rid].columns[aggregate_column_index]
         if len(record_locations) == 0:
             return False
       

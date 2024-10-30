@@ -41,16 +41,22 @@ for key in records:
     # check for retreiving version -1. Should retreive version 0 since only one version exists.
     record = query.select_version(key, 0, [1, 1, 1, 1, 1], -1)[0]
     error = False
+   
     for i, column in enumerate(record.columns):
+        #print(record.columns)
         if column != records[key][i]:
+            print("ERROR: ", column, records[key][i])
             error = True
     if error:
         print('select error on', key, ':', record, ', correct:', records[key])
+        
     else:
         pass
-        # print('select on', key, ':', record)
+        #print('select on', key, ':', record)
+
 
 updated_records = {}
+
 for key in records:
     updated_columns = [None, None, None, None, None]
     updated_records[key] = records[key].copy()
@@ -85,16 +91,19 @@ for key in records:
     else:
         pass
         # print('update on', original, 'and', updated_columns, ':', record)
-    
+    """
     #check version 0 for record
     record = query.select_version(key, 0, [1, 1, 1, 1, 1], 0)[0]
     error = False
     for j, column in enumerate(record.columns):
         if column != updated_records[key][j]:
+            print("ERROR: ", column, updated_records[key][j])
             error = True
     if error:
-        print('update error on', records[key], 'and', updated_columns, ':', record, ', correct:', updated_records[key])
-
+        pass
+        #print('update error on', records[key], 'and', updated_columns, ':', record, ', correct:', updated_records[key])
+        """
+"""
 keys = sorted(list(records.keys()))
 # aggregate on every column 
 for c in range(0, grades_table.num_columns):
@@ -123,3 +132,5 @@ for c in range(0, grades_table.num_columns):
             print('sum error on [', keys[r[0]], ',', keys[r[1]], ']: ', updated_result, ', correct: ', updated_column_sum)
         else:
             pass
+            
+"""

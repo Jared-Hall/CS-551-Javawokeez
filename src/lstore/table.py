@@ -69,7 +69,8 @@ class Table:
                 self.bp_index[i] += 1 #Increment the index of the current base page 
                 self.base_pages[i][self.bp_index[i]].write(bytearray(value, "utf-8")) #Write the value to the new base page using the incremented index 
                 rid = rid + ((self.bp_index[i],  self.base_pages[i][self.bp_index[i]].numEntries - 1),) #Save the RID tuple for this column as (incremented bp_index, page.num_entries-1)
-        record = Record(rid, columns[0][0], columns) #Create a record using the new rid, key(first column) and the columns 
+        record = Record(rid, columns[0][0], columns[0]) #Create a record using the new rid, key(first column) and the columns 
+        #print("TEST", columns[0])
         self.bp_directory[rid] = record #Map the RID to the physical record 
         
      
