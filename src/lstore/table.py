@@ -69,7 +69,7 @@ class Table:
                 self.bp_index[i] += 1 #Increment the index of the current base page 
                 self.base_pages[i][self.bp_index[i]].write(bytearray(value, "utf-8")) #Write the value to the new base page using the incremented index 
                 rid = rid + ((self.bp_index[i],  self.base_pages[i][self.bp_index[i]].numEntries - 1),) #Save the RID tuple for this column as (incremented bp_index, page.num_entries-1)
-        record = Record(rid, columns[0][0], columns[0]) #Create a record using the new rid, key(first column) and the columns 
+        record = Record(rid, columns[0][0], list(columns[0])) #Create a record using the new rid, key(first column) and the columns 
         #print("TEST", columns[0])
         self.bp_directory[rid] = record #Map the RID to the physical record 
         
@@ -93,22 +93,28 @@ class Table:
 
     def update(self, primary_key, *columns):
         base_record = self.bp_directory[self.key_rid[primary_key][0]]
+        latest_tail = None 
+        if base_record.rid in self.tp_directory:
+            latest_tail = self.tp_directory[base_record.rid][-1]
+        else:
+            latest_tail = base_record  
         #tail_record = base_record
-        tail_record = Record((), base_record.key, base_record.columns)
+        tail_record = Record((), latest_tail.key, latest_tail.columns)
         #tail_record.columns = columns 
         for i,value in enumerate(columns):
-            value = str(value)
+            
             if value != None:
                 
-                if self.tail_pages[i][self.tp_index[i]].has_capacity(len(value)):
-                    self.tail_pages[i][self.tp_index[i]].write(bytearray(value, "utf-8"))
+                if self.tail_pages[i][self.tp_index[i]].has_capacity(len(str(value))):
+                    self.tail_pages[i][self.tp_index[i]].write(bytearray(str(value), "utf-8"))
                     tail_record.rid = tail_record.rid + ((self.tp_index[i], self.tail_pages[i][self.tp_index[i]].numEntries - 1),)
                 else:
                     self.tail_pages[i].append(Page())
                     self.tp_index[i] += 1 
-                    self.tail_pages[i][self.tp_index[i]].write(bytearray(value, "utf-8"))        
+                    self.tail_pages[i][self.tp_index[i]].write(bytearray(str(value), "utf-8"))        
                     tail_record.rid = tail_record.rid + ((self.tp_index[i], self.tail_pages[i][self.tp_index[i]].numEntries - 1),)
-
+                #print("TEST: ", tail_record.columns)
+                tail_record.columns[i] = value
 
         if base_record.rid in self.tp_directory:
             self.tp_directory[base_record.rid].append(tail_record)

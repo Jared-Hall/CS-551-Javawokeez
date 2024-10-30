@@ -48,13 +48,20 @@ class Query:
     """
     def select(self, search_key, search_key_index, projected_columns_index):
         record_locations = self.table.key_rid[search_key]  
+        #print("LOCS: ", record_locations) 
+        #for rid in record_locations:
+            #print(rid in self.table.tp_directory)
         columnsToReturn = []
         if record_locations[0] in self.table.tp_directory:
             for record in self.table.tp_directory[record_locations[0]]:
-                columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))
+                #columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))
+                columnsToReturn.insert(0, record)
+            columnsToReturn.append(self.table.bp_directory[record_locations[0]])
 
         else:
-            columnsToReturn.append(self.FilterColumns(self.table.bp_directory[record_locations[0]].columns, projected_columns_index)) 
+            
+            #columnsToReturn.append(self.FilterColumns(self.table.bp_directory[record_locations[0]].columns, projected_columns_index)) 
+            columnsToReturn.append(self.table.bp_directory[record_locations[0]])
             #print(record)
         
         return columnsToReturn
