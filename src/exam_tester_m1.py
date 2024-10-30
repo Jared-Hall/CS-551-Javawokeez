@@ -41,7 +41,7 @@ for key in records:
     # check for retreiving version -1. Should retreive version 0 since only one version exists.
     record = query.select_version(key, 0, [1, 1, 1, 1, 1], -1)[0]
     error = False
-   
+    
     for i, column in enumerate(record.columns):
         #print(record.columns)
         if column != records[key][i]:
@@ -66,20 +66,32 @@ for key in records:
         updated_columns[i] = value
         # update our test directory
         updated_records[key][i] = value
+    print(key, updated_columns)
     query.update(key, *updated_columns)
 
     #check version -1 for record
-    record = query.select_version(key, 0, [1, 1, 1, 1, 1], -1)[0]
+    record = query.select_version(key, 0, [1, 1, 1, 1, 1], -1)#[0]
     error = False
+    for rec in record:
+        print("Z: ", rec.columns)
+    print("==========")
+    print("result: ", record)
+    print("expected: ", records[key])
+    print("==========")
     for j, column in enumerate(record.columns):
+        print("==========")
+        print("result: ", column)
+        print("expected: ", records[key][j])
+        print("==========")
         if column != records[key][j]:
             error = True
     if error:
         print('update error on', records[key], 'and', updated_columns, ':', record, ', correct:', records[key])
+        input()
     else:
         pass
         # print('update on', original, 'and', updated_columns, ':', record)
-
+"""
     #check version -2 for record
     record = query.select_version(key, 0, [1, 1, 1, 1, 1], -2)[0]
     error = False
@@ -91,7 +103,7 @@ for key in records:
     else:
         pass
         # print('update on', original, 'and', updated_columns, ':', record)
-    """
+   
     #check version 0 for record
     record = query.select_version(key, 0, [1, 1, 1, 1, 1], 0)[0]
     error = False
@@ -102,8 +114,8 @@ for key in records:
     if error:
         pass
         #print('update error on', records[key], 'and', updated_columns, ':', record, ', correct:', updated_records[key])
-        """
-"""
+        
+
 keys = sorted(list(records.keys()))
 # aggregate on every column 
 for c in range(0, grades_table.num_columns):

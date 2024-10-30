@@ -93,11 +93,12 @@ class Table:
 
     def update(self, primary_key, *columns):
         base_record = self.bp_directory[self.key_rid[primary_key][0]]
+        #base_record = Record(self.key_rid[primary_key][0], primary_key, self.bp_directory[self.key_rid[primary_key][0]].columns)
         latest_tail = None 
         if base_record.rid in self.tp_directory:
             latest_tail = self.tp_directory[base_record.rid][-1]
         else:
-            latest_tail = base_record  
+            latest_tail = base_record
         #tail_record = base_record
         tail_record = Record((), latest_tail.key, latest_tail.columns)
         #tail_record.columns = columns 

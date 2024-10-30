@@ -126,16 +126,28 @@ class Query:
         recordToReturn = []
         
         record_locations = self.table.key_rid[search_key] 
-        print(record_locations)
-        print(self.table.tp_directory[record_locations[0]])
-        for rid in record_locations:
-            print(rid in self.table.bp_directory)
-        loc = record_locations[relative_version] 
-        if loc in self.table.bp_directory: 
-            return self.table.bp_directory[loc] 
+        #print(record_locations)
+        records = [self.table.bp_directory[record_locations[0]]] 
+        if record_locations[0] in self.table.tp_directory:
+            for tailrecord in self.table.tp_directory[record_locations[0]]:
+                records.append(tailrecord)
+       
+        if len(records) == 1:
+            return records
+        
         else:
-            pass
-
+            return records
+        
+        """
+        for rid in record_locations:
+            if rid in self.table.tp_directory:
+                for record in self.table.tp_directory[rid]:
+                    recordToReturn.append(record)
+            elif rid in self.table.bp_directory:
+                recordToReturn.append(self.table.bp_directory[rid])
+        return recordToReturn
+        """
+        
 
     def FilterColumns(self, columns, projected_columns_index):
         columnsToReturn = []
@@ -164,8 +176,12 @@ class Query:
     """
     def sum(self, start_range, end_range, aggregate_column_index):
         summationResult = 0
-        keys = [start_range + i for i in range(end_range - start_range)] 
-        record_locations = [self.table.key_rid[key][0] for key in keys]
+        keys = [start_range + i for i in range((end_range - start_range) + 1)] 
+        record_locations = []
+        for key in keys: 
+            if key in self.table.key_rid:
+                record_locations.append(self.table.key_rid[key][0])
+        #record_locations = [self.table.key_rid[key][0] for key in keys]
         for rid in record_locations:
             if rid in self.table.tp_directory: 
                 summationResult += self.table.tp_directory[rid][-1].columns[aggregate_column_index] 
@@ -174,6 +190,7 @@ class Query:
                 summationResult += self.table.bp_directory[rid].columns[aggregate_column_index]
         if len(record_locations) == 0:
             return False
+        return summationResult
       
         """
         record_locations = self.table.index.locate_range(start_range, end_range, 0)
