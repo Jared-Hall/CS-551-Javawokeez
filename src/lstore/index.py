@@ -1,6 +1,6 @@
 """
 Documentation for the page class.
-Author: Nabil Abdel-Rahman <email>, Jared Hall jhall10@uoregon.edu
+Author: Nabil Abdel-Rahman nabilabdel-rahman@outlook.com, Jared Hall jhall10@uoregon.edu
 Description:
     This file contains our implementation of the core storage data structure for our L-Store database.
     The description of this data structure is as follows:
@@ -10,6 +10,7 @@ A data strucutre holding indices for various columns of a table.
 Key column should be indexd by default, other columns can be indexed through this object. 
 Indices are usually B-Trees, but other data structures can be used as well.
 """
+from lib.bTree import *
 
 class Index:
     """
@@ -28,16 +29,17 @@ class Index:
         Outputs:
             output <type>: <description>
         """
-        # One index for each table. All our empty initially.
-        self.indices = [None] *  table.num_columns
+        self.table = table
+        self.indices = [None] * table.mum_columns
+        self.indices[self.table.key] = BPlusTree()
 
         #Step-01: Build the record index (b+ tree)
-        
+        self.tree = BPlusTree()
         #step-02: Build Hashmap of columns from table.num_columns
-        pass
+        self.column_indices = {}
 
 
-    def _getIndex(self, rid):
+    def _getRecord(self, rid):
         """
         Description: returns the index for the specified record 
         Inputs: 
@@ -45,9 +47,9 @@ class Index:
         Outputs:
             output <type>: <description>
         """
-        pass
+        return self.tree.query(rid)
 
-    def _getRangeIndex(self, startID, endID):
+    def _getRangeRecord(self, startID, endID):
         """
         Description: returns the locations of all records between "startID" and endID.
         Inputs: 
@@ -55,9 +57,20 @@ class Index:
         Outputs:
             output <type>: <description>
         """
-        pass     
+        return self.tree.rangeQuery(startID, endID)
+    
+    def _addColumn(self, cID, columnPointer):
+        """
+        Description: Inserts the column ID along with it's key
+        Inputs: 
+            varName <type>: <description>
+        Outputs:
+            output <type>: <description>
+        """
+        self.column_indices[cID] = columnPointer
 
-    def _createIndex(self, recordPointer):
+
+    def _createIndex(self, key, value):
         """
         Description: Inserts the record into the b+ Tree and creates a UID, which is then returned
         Inputs: 
@@ -65,19 +78,9 @@ class Index:
         Outputs:
             output <type>: <description>
         """
-        pass
+        return self.tree.insert(key, value)
 
-    def _deleteIndex(self, rid):
-        """
-        Description: remove an entry from the index keyed by rid. boolean function returns True if successful, else false if key doesn't exist.
-        Inputs: 
-            varName <type>: <description>
-        Outputs:
-            output <type>: <description>
-        """
-        pass
-
-    def _dropColumn(cID):
+    def _dropColumn(self, cID):
         """
         Description: drop a column from the HashMap and delete every instance of that column in every record (Note:  may not actually need this )
         Inputs: 
@@ -85,10 +88,16 @@ class Index:
         Outputs:
             output <type>: <description>
         """
-        pass
+        del self.column_indices[cID]
+
+    def updateIndex(self, key, value, cID):
+        if(self.indices[cID].query(key) == False):
+            values = []
+            values.append(value)
+            self.indices[cID].insert(key, values)
 
 
-    def locate(self, columnID, value):
+    def _locate(self, columnID, value):
         """
         Description: returns the location of all records with the given value on column by columnID
         Inputs: 
@@ -96,10 +105,12 @@ class Index:
         Outputs:
             output <type>: <description>
         """
-        pass
+        if self.column_indices[columnID] is None:
+            return []
+        return self.column_indices[columnID].get(value, [])
 
 
-    def locate_range(self, begin, end, cID):
+    def _locate_range(self, begin, end, cID):
         """
         Description: Returns the RIDs of all records with values in column specified by cID between "begin" and "end"
         Inputs: 
@@ -107,8 +118,26 @@ class Index:
         Outputs:
             output <type>: <description>
         """
-        pass
+        if self.column_indices[cID] is None:
+            return []
+        
+        rids = []
+        for value in range(begin, end + 1):
+            rids.extend(self.column_indices[cID].get(value, []))
+        
+        return rids
 
+    def locate(self, columnID, value):
+        tree = self.indices[columnID]
+        retVal = tree.query(value)
+        if(retVal != False):
+            return retVal
+        else:
+            return False
+    
+    def locateRange(self, start, stop, cID):
+        return self.indices[cID].rangeQuery(start, stop)
+    
 #=======================================================================================================================
     def create_index(self, cID):
         """
@@ -118,7 +147,8 @@ class Index:
         Outputs:
             output <type>: <description>
         """
-        pass
+        if self.column_indices[cID] is None:
+            self.column_indices[cID] = {}
 
     def drop_index(self, cID):
         """
@@ -128,4 +158,5 @@ class Index:
         Outputs:
             output <type>: <description>
         """
-        pass  
+        if self.column_indices[cID] is not None:
+            self.column_indices[cID] = None 

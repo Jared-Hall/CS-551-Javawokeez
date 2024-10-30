@@ -1,6 +1,6 @@
 """
 Documentation for the db(database) class.
-Author: Jack O'Donnell Jodonnel@uoregon.edu 
+Author: Nabil Abdel-Rahman nabilabdel-rahman@outlook.com, Jack O'Donnell Jodonnel@uoregon.edu 
 Description:
     This file contains the implementation for the database. 
     The database handles creating, deleting, and retrieving tables 
