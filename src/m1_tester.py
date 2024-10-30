@@ -38,18 +38,13 @@ print("Insert finished")
 for key in records:
     # select function will return array of records 
     # here we are sure that there is only one record in t hat array
-    record = query.select(key, 0, [1, 1, 1, 1, 1])[0]
+    record = query.select(key, 0, [1, 1, 1, 1, 1])#[0]
     error = False
-    #print(record)
     for i, column in enumerate(record.columns):
         if column != records[key][i]:
             error = True
     if error:
-     
         print('select error on', key, ':', record, ', correct:', records[key])
-    else:
-        pass
-        # print('select on', key, ':', record)
 
 for key in records:
     updated_columns = [None, None, None, None, None]
@@ -62,7 +57,6 @@ for key in records:
         # update our test directory
         records[key][i] = value
         query.update(key, *updated_columns)
-
         record = query.select(key, 0, [1, 1, 1, 1, 1])[0]
         error = False
         for j, column in enumerate(record.columns):
@@ -83,11 +77,8 @@ for c in range(0, grades_table.num_columns):
         # calculate the sum form test directory
         column_sum = sum(map(lambda key: records[key][c], keys[r[0]: r[1] + 1]))
         result = query.sum(keys[r[0]], keys[r[1]], c)
-        
         if column_sum != result:
             print('sum error on [', keys[r[0]], ',', keys[r[1]], ']: ', result, ', correct: ', column_sum)
-            input()
         else:
             pass
             # print('sum on [', keys[r[0]], ',', keys[r[1]], ']: ', column_sum)
-            #92107206

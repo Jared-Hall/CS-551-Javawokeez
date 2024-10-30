@@ -91,68 +91,21 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
-        """
-        columnsToReturn = []
-
-        #Select all records where column[0] = search_key        
-        record_locations = self.table.index.locate(search_key, search_key_index)
-
-        
-        # Assuming record_locations is an array of rids:
-        for rid in record_locations:   
-
-            # If no updates to the record, add base record columns for the record         
-            if rid not in self.table.tp_directory: 
-                record = self.table.bp_directory[rid]
-                if record != None:                    
-                    columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))
-                continue
-
-            tail_records = self.table.tp_directory[rid]
-
-            # If at least r = relative_version of records are present, add the rth version
-            if len(tail_records) > abs(relative_version): 
-                record = tail_records[len(tail_records) - abs(relative_version) - 1]
-                columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))
-
-            # If there haven't been r updates yet, get the closest one to r
-            if len(tail_records) > abs(relative_version): 
-                record = tail_records[0]
-                columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))                
-        return columnsToReturn
-        """
-        
-            
-        recordToReturn = []
-        
         record_locations = self.table.key_rid[search_key] 
-        #records = []
         
-            
-        records = [self.table.bp_directory[record_locations[0]]] 
-        if record_locations[0] in self.table.tp_directory:   
-            if relative_version == 0:
-                return self.table.tp_directory[record_locations[0]][-1]
-            for tailrecord in self.table.tp_directory[record_locations[0]]:
-                records.append(tailrecord)
+        #step-01: [br]   
+        records = [self.table.bp_directory[record_locations[0]]]
+        # [br, te1, tr2, ....]
+        if(record_locations[0] in self.table.tp_directory): #if there are tail records
+            records += self.table.tp_directory[record_locations[0]]
 
-
-        if len(records) == 1:
-            return records
-        
+        if(relative_version == 0):
+            return [records[-1]]
+        elif(abs(relative_version) >= len(records)):
+            return [records[0]]
         else:
-            return records
-        
-        """
-        for rid in record_locations:
-            if rid in self.table.tp_directory:
-                for record in self.table.tp_directory[rid]:
-                    recordToReturn.append(record)
-            elif rid in self.table.bp_directory:
-                recordToReturn.append(self.table.bp_directory[rid])
-        return recordToReturn
-        """
-        
+            return [records[relative_version - 1]]
+
 
     def FilterColumns(self, columns, projected_columns_index):
         columnsToReturn = []
