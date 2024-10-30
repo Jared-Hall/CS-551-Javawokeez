@@ -78,16 +78,23 @@ class Table:
  
 
     def delete(self, primary_key):
-        for record in self.tp_directory[base_record.rid]: #Use the tp directory to loop through tail records of that base record 
-            record.rid = -1 #Invalidate each associated tail record 
-        base_record = self.bp_directory[self.key_rid[primary_key]]  #Find the physical record using the given key. 
+        base_record = self.bp_directory[self.key_rid[primary_key][0]]
+        
+        if base_record.rid in self.tp_directory: 
+            for record in self.tp_directory[base_record.rid]:
+                record.rid = -1 
+
+
+       # for record in self.tp_directory[base_record.rid]: #Use the tp directory to loop through tail records of that base record 
+            #record.rid = -1 #Invalidate each associated tail record 
+        #base_record = self.bp_directory[self.key_rid[primary_key]]  #Find the physical record using the given key. 
         base_record.rid = -1 #Invalidate the base record rid 
 
     def update(self, primary_key, *columns):
         base_record = self.bp_directory[self.key_rid[primary_key][0]]
         #tail_record = base_record
         tail_record = Record((), base_record.key, base_record.columns)
-        tail_record.columns = columns 
+        #tail_record.columns = columns 
         for i,value in enumerate(columns):
             value = str(value)
             if value != None:
