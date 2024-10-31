@@ -98,9 +98,6 @@ for key in records:
         print('update error on', records[key], 'and', updated_columns, ':', record, ', correct:', records[key])
         input()
    
-
-        
-"""
 keys = sorted(list(records.keys()))
 # aggregate on every column 
 for c in range(0, grades_table.num_columns):
@@ -112,22 +109,19 @@ for c in range(0, grades_table.num_columns):
         result = query.sum_version(keys[r[0]], keys[r[1]], c, -1)
         if column_sum != result:
             print('sum error on [', keys[r[0]], ',', keys[r[1]], ']: ', result, ', correct: ', column_sum)
-        else:
-            pass
-            # print('sum on [', keys[r[0]], ',', keys[r[1]], ']: ', column_sum)
+            input()
+        
         # version -2 sum
         column_sum = sum(map(lambda key: records[key][c], keys[r[0]: r[1] + 1]))
         result = query.sum_version(keys[r[0]], keys[r[1]], c, -2)
         if column_sum != result:
             print('sum error on [', keys[r[0]], ',', keys[r[1]], ']: ', result, ', correct: ', column_sum)
-        else:
-            pass
+            input()
         # version 0 sum
         updated_column_sum = sum(map(lambda key: updated_records[key][c], keys[r[0]: r[1] + 1]))
         updated_result = query.sum_version(keys[r[0]], keys[r[1]], c, 0)
         if updated_column_sum != updated_result:
             print('sum error on [', keys[r[0]], ',', keys[r[1]], ']: ', updated_result, ', correct: ', updated_column_sum)
+            input()
         else:
             pass
-            
-"""

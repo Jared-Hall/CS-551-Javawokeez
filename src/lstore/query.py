@@ -91,20 +91,23 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
-        record_locations = self.table.key_rid[search_key] 
-        
-        #step-01: [br]   
-        records = [self.table.bp_directory[record_locations[0]]]
-        # [br, te1, tr2, ....]
-        if(record_locations[0] in self.table.tp_directory): #if there are tail records
-            records += self.table.tp_directory[record_locations[0]]
+        try:
+            record_locations = self.table.key_rid[search_key] 
+            
+            #step-01: [br]   
+            records = [self.table.bp_directory[record_locations[0]]]
+            # [br, te1, tr2, ....]
+            if(record_locations[0] in self.table.tp_directory): #if there are tail records
+                records += self.table.tp_directory[record_locations[0]]
 
-        if(relative_version == 0):
-            return [records[-1]]
-        elif(abs(relative_version) >= len(records)):
-            return [records[0]]
-        else:
-            return [records[relative_version - 1]]
+            if(relative_version == 0):
+                return [records[-1]]
+            elif(abs(relative_version) >= len(records)):
+                return [records[0]]
+            else:
+                return [records[relative_version - 1]]
+        except:
+            return False
 
 
     def FilterColumns(self, columns, projected_columns_index):
@@ -173,7 +176,19 @@ class Query:
     """
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
         summationResult = 0
+        for key in range(start_range, end_range + 1):
+            record = self.select_version(key, 0, [1 * self.table.num_columns], relative_version)
+            if(record != False):
+                summationResult += record[0].columns[aggregate_column_index]
+        return summationResult
 
+
+
+
+
+
+
+        """
         record_locations = self.table.index.locate_range(start_range, end_range, 0)
         
         if len(record_locations) == 0:
@@ -189,7 +204,7 @@ class Query:
             relativeRecord = self.table.tp_directory[rid][len(self.table.tp_directory[rid]) - relative_version - 1]
             summationResult += relativeRecord.columns[aggregate_column_index]
 
-        return summationResult
+        return summationResult"""
 
     
     """
