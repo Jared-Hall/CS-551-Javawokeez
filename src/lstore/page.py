@@ -6,6 +6,7 @@ Description:
     The description of this data structure is as follows:
 
 """
+import uuid
 
 class Page:
 
@@ -28,6 +29,8 @@ class Page:
         else:
             err = "ERROR: Parameter <capacity> must be a non-zero integer."
             raise TypeError(err)
+        
+        self.pageID = uuid.uuid4() # Generate a Unique id
             
 
     def has_capacity(self, size):

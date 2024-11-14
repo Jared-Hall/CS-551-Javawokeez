@@ -2,6 +2,7 @@ from lstore.db import Database
 from lstore.query import Query
 
 from random import choice, randint, sample, seed
+from time import process_time
 
 db = Database()
 # Create a table  with 5 columns
@@ -22,6 +23,7 @@ number_of_records = 1000
 number_of_aggregates = 100
 seed(3562901)
 
+update_time_0 = process_time()
 for i in range(0, number_of_records):
     key = 92106429 + randint(0, number_of_records)
 
@@ -32,8 +34,12 @@ for i in range(0, number_of_records):
     records[key] = [key, randint(0, 20), randint(0, 20), randint(0, 20), randint(0, 20)]
     query.insert(*records[key])
     # print('inserted', records[key])
-print("Insert finished")
+update_time_1 = process_time()
 
+print("Insert finished")
+print("Insert took:  \t\t\t", update_time_1 - update_time_0)
+
+update_time_0 = process_time()
 # Check inserted records using select query
 for key in records:
     # select function will return array of records 
@@ -53,8 +59,13 @@ for key in records:
     else:
         pass
         #print('select on', key, ':', record)
+update_time_1 = process_time()
+
+print("Select finished")
+print("Select took:  \t\t\t", update_time_1 - update_time_0)
 
 
+update_time_0 = process_time()
 updated_records = {}
 
 for key in records:
@@ -75,7 +86,8 @@ for key in records:
         if column != updated_records[key][j]:
             error = True
     if error:
-        print('update error on', records[key], 'and', updated_columns, ':', record, ', correct:', updated_records[key])
+        print('update error on', records[key], 'and', updated_columns, ':', record.columns, ', correct:', updated_records[key])
+        
         input()
 
     #check version -1 for record
@@ -97,6 +109,13 @@ for key in records:
     if error:
         print('update error on', records[key], 'and', updated_columns, ':', record, ', correct:', records[key])
         input()
+
+update_time_1 = process_time()
+
+print("Update finished")
+print("Update took:  \t\t\t", update_time_1 - update_time_0)
+
+update_time_0 = process_time()
    
 keys = sorted(list(records.keys()))
 # aggregate on every column 
@@ -125,3 +144,7 @@ for c in range(0, grades_table.num_columns):
             input()
         else:
             pass
+update_time_1 = process_time()
+
+print("Sum finished")
+print("Sum took:  \t\t\t", update_time_1 - update_time_0)

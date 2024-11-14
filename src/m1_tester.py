@@ -1,6 +1,6 @@
 from lstore.db import Database
 from lstore.query import Query
-
+from time import process_time
 from random import choice, randint, sample, seed
 
 db = Database()
@@ -22,6 +22,7 @@ number_of_records = 1000
 number_of_aggregates = 100
 seed(3562901)
 
+update_time_0 = process_time()
 for i in range(0, number_of_records):
     key = 92106429 + randint(0, number_of_records)
 
@@ -32,13 +33,18 @@ for i in range(0, number_of_records):
     records[key] = [key, randint(0, 20), randint(0, 20), randint(0, 20), randint(0, 20)]
     query.insert(*records[key])
     # print('inserted', records[key])
+
+update_time_1 = process_time()
+
 print("Insert finished")
+print("Insert took:  \t\t\t", update_time_1 - update_time_0)
+
 
 # Check inserted records using select query
 for key in records:
     # select function will return array of records 
     # here we are sure that there is only one record in t hat array
-    record = query.select(key, 0, [1, 1, 1, 1, 1])#[0]
+    record = query.select(key, 0, [1, 1, 1, 1, 1])[0]
     error = False
     for i, column in enumerate(record.columns):
         if column != records[key][i]:
