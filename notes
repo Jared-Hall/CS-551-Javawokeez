@@ -1,0 +1,108 @@
+key -> pos
+key ->  -> pos
+
+{key : pysLoc}
+{value: [keys]} -> 
+
+(v1, cid)
+
+(v1) -> [keys]
+
+create:
+table(9215734, c0, c1, c2, cc3)
+
+insert:
+(key, v1,  v2,  v3,  v4)
+ idx0 idx1 idx2 idx3 idx4
+ pid0  pid1 pid2 pid3 pid4
+ cid0  cid1 .....
+
+table-wise:
+cid -> [PWI, PWI, PWI] -> PWI -> {v1 -> [keys]}
+
+{column0 : [pid0(BP), pid1(TP), pid2(TP)]}
+
+pid0 -> {0:[9215731, ....], 10: [9215734]}
+pid2 -> {20 : [k1, k2], 30: [k2]}
+
+
+return a list of 2nd version keys in col3 with the value 15:
+table(key, col1, col2, col3)
+insert: (0, 10, 20, 30)
+insert: (1, 12, 10, 15)
+insert: (2, 5, 8, 13)
+insert: (3, 2, 4, 6)
+insert: (4, 7, 20, 5)
+
+update: (1, [5, None, None])
+update: (4, [15, 15, 15])
+
+keys->physLoc
+{
+ 0 : (('P-1', 0), ('P-2', 0), ('P-3', 0)), (('P-4', 2), ('P-2', 0), ('P-3', 0))
+ 1 : (('P-1', 1), ('P-2', 1), ('P-3', 1))
+ 3 : (('P-1', 2), ('P-2', 2), ('P-3', 2))
+ 4 : (('P-1', 3), ('P-2', 3), ('P-3', 3)) 
+}
+
+Query: value-columnID
+most recent records: [2,1]
+
+
+colID -> PWI 
+{
+    col1 : [<bpRef>, <tpRef>, 'TP-20'],
+    col2 : [<bpRef>, <tpRef>],
+    col3 : [<bpRef, <tpRef>]
+}
+
+PWIs
+BP(P1)
+{
+ 10: {1:0, 2:0},
+ 12 : [1],
+ 2 : [3],
+ 7 : [4],
+ 5 : [2] 
+}
+
+BP(P2)
+{
+ 20: [0, 20],
+ 10 : [1],
+ 4 : [3],
+ 8 : [2] 
+}
+
+BP(P3)
+{
+ 30: [0],
+ 15 : [1],
+ 6 : [3],
+ 5: [4],
+ 13 : [2] 
+}
+
+TP(P4)
+{
+ 5 : [1],
+ 15 : [4]
+}
+
+TP(P4)
+{
+ 12 : [1],
+ 15 : [4]
+}
+
+TP(P4)
+{
+ 12 : [1],
+ 15 : [4]
+}
+
+
+
+record-wise index:
+key -> [((pid, idx), (pid, idx)), ((pid, idx), (pid, idx)), ((pid, idx), (pid, idx)), ....]
+

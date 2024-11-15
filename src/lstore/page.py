@@ -37,7 +37,9 @@ class Page:
             rIndex (list): A list of open data indexes
             [0xBBBB, 0xBBBB]
                  0     1
-            {rid1:0, rid2:1, ...} <- page Index
+            {rid1: [(pid, 0), ...], rid2:1, ...} <- page Index
+
+            {"[(pid1, 0), (pid2, 1), ...]" : }
             [1] <- rIndex
         """
         self.numEntries = 0
@@ -45,7 +47,6 @@ class Page:
         self.tail = 0
         self.capacity = 0
         self.entrySize = size
-        
         self.data = None
         self.pIndex = {}
         self.rIndex = []
