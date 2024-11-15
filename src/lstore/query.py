@@ -47,6 +47,7 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
+        # print(self.table.key_rid)
         record_locations = self.table.key_rid[search_key]  
         #print("LOCS: ", record_locations) 
         #for rid in record_locations:
@@ -55,13 +56,14 @@ class Query:
         if record_locations[0] in self.table.tp_directory:
             for record in self.table.tp_directory[record_locations[0]]:
                 #columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))
-                columnsToReturn.insert(0, record)
-            columnsToReturn.append(self.table.bp_directory[record_locations[0]])
+                columnsToReturn.insert(0, record.getRecord())
+                # if search_key == 92107415:
+                # print("")
+            columnsToReturn.append(self.table.bp_directory[record_locations[0]].getRecord())
 
-        else:
-            
+        else:            
             #columnsToReturn.append(self.FilterColumns(self.table.bp_directory[record_locations[0]].columns, projected_columns_index)) 
-            columnsToReturn.append(self.table.bp_directory[record_locations[0]])
+            columnsToReturn.append(self.table.bp_directory[record_locations[0]].getRecord())
             #print(record)
         
         return columnsToReturn
@@ -101,11 +103,11 @@ class Query:
                 records += self.table.tp_directory[record_locations[0]]
 
             if(relative_version == 0):
-                return [records[-1]]
+                return [records[-1].getRecord()]
             elif(abs(relative_version) >= len(records)):
-                return [records[0]]
+                return [records[0].getRecord()]
             else:
-                return [records[relative_version - 1]]
+                return [records[relative_version - 1].getRecord()]
         except:
             return False
 
@@ -145,10 +147,14 @@ class Query:
         #record_locations = [self.table.key_rid[key][0] for key in keys]
         for rid in record_locations:
             if rid in self.table.tp_directory: 
-                summationResult += self.table.tp_directory[rid][-1].columns[aggregate_column_index] 
+                # summationResult += self.table.tp_directory[rid][-1].columns[aggregate_column_index] 
+                summationResult += self.table.tp_directory[rid][-1].getColumnValue(aggregate_column_index)
+            
             else:
                 #print(self.table.bp_directory[rid].columns, self.table.bp_directory[rid].columns[0])
-                summationResult += self.table.bp_directory[rid].columns[aggregate_column_index]
+                # summationResult += self.table.bp_directory[rid].columns[aggregate_column_index]
+                
+                summationResult += self.table.bp_directory[rid].getColumnValue(aggregate_column_index)
         if len(record_locations) == 0:
             return False
         return summationResult
@@ -177,13 +183,34 @@ class Query:
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
         summationResult = 0
         for key in range(start_range, end_range + 1):
-            record = self.select_version(key, 0, [1 * self.table.num_columns], relative_version)
-            if(record != False):
-                summationResult += record[0].columns[aggregate_column_index]
+            # record = self.select_version(key, 0, [1 * self.table.num_columns], relative_version)
+            # if(record != False):            
+                # summationResult +=# record[0].columns[aggregate_column_index]
+            value = self.GetVersionColumnValue(key, relative_version, aggregate_column_index)
+            if value != False:
+                summationResult += self.GetVersionColumnValue(key, relative_version, aggregate_column_index)
         return summationResult
 
 
+    def GetVersionColumnValue(self, search_key, relative_version, columnIndex):
+        try:
+            record_locations = self.table.key_rid[search_key] 
+            
+            #step-01: [br]   
+            records = [self.table.bp_directory[record_locations[0]]]
+            # [br, te1, tr2, ....]
+            if(record_locations[0] in self.table.tp_directory): #if there are tail records
+                records += self.table.tp_directory[record_locations[0]]
 
+            if(relative_version == 0):
+                return records[-1].getColumnValue(columnIndex)
+            elif(abs(relative_version) >= len(records)):
+                return records[0].getColumnValue(columnIndex)
+            else:
+                return records[relative_version - 1].getColumnValue(columnIndex)
+        except:
+            return False
+        pass
 
 
 

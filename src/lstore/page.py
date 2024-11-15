@@ -14,6 +14,11 @@ Modifications:
            automatically do so.
        iii. All data stored in the page has a fixed chunck size of 
 """
+<<<<<<< HEAD
+=======
+import uuid
+
+>>>>>>> 10dd497085d4d2a784bbcdec4b6f3de49ad55e90
 class Page:
 
     def __init__(self, pid, capacity=4096, size=8, fromFile=False):
@@ -63,6 +68,12 @@ class Page:
         else:
             err = "ERROR: Parameter <capacity> must be a non-zero integer."
             raise TypeError(err)
+<<<<<<< HEAD
+=======
+        
+        self.pageID = uuid.uuid4() # Generate a Unique id
+            
+>>>>>>> 10dd497085d4d2a784bbcdec4b6f3de49ad55e90
 
     def has_capacity(self, size):
         """
