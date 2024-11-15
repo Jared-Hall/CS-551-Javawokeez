@@ -106,3 +106,33 @@ TP(P4)
 record-wise index:
 key -> [((pid, idx), (pid, idx)), ((pid, idx), (pid, idx)), ((pid, idx), (pid, idx)), ....]
 
+
+
+
+
+{
+    col1 : [<bpRef>, <tpRef>, 'TP-20'],
+    col2 : [<bpRef>, <tpRef>],
+    col3 : [<bpRef>, <tpRef>]
+}
+
+Bufferpool Index
+3 pages per col
+On eviction: Evict 40% of the pages based on LFU
+Table 5 columns 3*pageMax Indexes (5*PageMax pages)
+{
+    col1-Mem(Full): [<PageRef3>,     <PageRef4>]
+                         Full (1.2)   FULL (LFU: 0.001)
+    
+    col1-Mem(Partial):  [<PageRef5>]
+                          n/2 (LFU: 0.0000001)
+
+    col1-Disk(Full): ["PID1", "PID2", ...]
+                       Full   Full
+    
+    col-Disk(partial): [("PID7", 510), .... ("PID10", 236)]
+                                cap
+} 
+
+
+Page() -> updateRate(time) -> 0.123

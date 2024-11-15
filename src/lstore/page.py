@@ -12,7 +12,7 @@ Modifications:
        i. I added a UID to the page for page-based indexing.
        ii. I added methods to read from and write to a file as well as a method for pages to 
            automatically do so.
-       iii. All data stored in the page has a fixed chunck size of 
+       iii. All data stored in the page has a fixed chunck size of 8 bytes
 """
 class Page:
 
@@ -33,23 +33,24 @@ class Page:
             Page Object
         
         Internal Objects:
-            pIndex (dict): A dictionary containing key-value pairs where key=rid, value=data index
+            pageIndex (dict): A dictionary containing a page-wise index of values with their absolute version
             rIndex (list): A list of open data indexes
-            [0xBBBB, 0xBBBB]
-                 0     1
-            {rid1: [(pid, 0), ...], rid2:1, ...} <- page Index
-
-            {"[(pid1, 0), (pid2, 1), ...]" : }
-            [1] <- rIndex
+            dTail (int): The last open position in the data array
+            rTail (int): the last open position in the rIndex array
+            data (ByteArray): The actual data of the column in bytes
+            maxEntries (int): The maximum number of entries (max = capacity//entrySize)
+            entrySize (int): The fixed size of each entry.
         """
         self.numEntries = 0
-        self.maxEntries = 4096//size
-        self.tail = 0
+        self.dTail = 0
+        self.rTail = 0
         self.capacity = 0
         self.entrySize = size
         self.data = None
         self.pIndex = {}
-        self.rIndex = []
+        self.LFU = 0
+        self.pin = False
+        
         if(type(pid) != type("str") or "P-" not in pid):
             err = "ERROR: Parameter <pid> must be a string in the format P-<int>."
             raise TypeError(err)
@@ -58,9 +59,13 @@ class Page:
             
         if(fromFile):
             self.load()
+            self.capacity = capacity
+            self.maxEntries = capacity//size
         elif(type(capacity) == type(1) and capacity > 0):
             self.data = bytearray(capacity)
             self.capacity = capacity
+            self.maxEntries = capacity//size
+            self.rIndex = [-1]*self.maxEntries
         else:
             err = "ERROR: Parameter <capacity> must be a non-zero integer."
             raise TypeError(err)
@@ -80,13 +85,24 @@ class Page:
     
     def save(self):
         """
-        Description: This method saves the page to disk. 
+        Description: This method saves the page to disk.
+        Data structures:
+        dataIndex:
+        {
+            <value>: {
+                        <version> : <key>,
+                    },
+        }
+
+        removeIndex: 
+        [idx, idx, idx, idx, ...]
+
         Format:
-        [<pid>.index]
-        rid:idx,rid:idx,... <- this is the page index
-        (rid,idx),(rid,idx),... <- this is the remove index
+        Filename: <pid>.index
+        rid:idx, rid:idx ,... <- this is the page index
+        idx,idx,idx ,... <- this is the remove index
         [data]
-        )0xBBBBBBBB0xBBBBBBB...
+        )0xBBBBBBBB, 0xBBBBBBB...
         """
         #Step-01: Write the page index
         with open("storage/"+self.pid+".index", "w") as idxFile:
