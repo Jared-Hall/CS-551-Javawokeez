@@ -68,8 +68,8 @@ class Table:
         
 
         # HJV changes
-        self.base_pages = [[bufferPool.createNewPageAndGetId()] for i in range(num_columns)] # List of List of page ids [[Base pageID for column 1], [Base pageID for column 2], [Base pageID for column 3]]
-        self.tail_pages = [[bufferPool.createNewPageAndGetId()] for i in range(num_columns)]# List of List of page ids [[Tail pageID for column 1], [Tail pageID for column 2], [Tail pageID for column 3]]
+        self.base_pages = [[bufferPool.createNewPageAndGetIdForColumn(i)] for i in range(num_columns)] # List of List of page ids [[Base pageID for column 1], [Base pageID for column 2], [Base pageID for column 3]]
+        self.tail_pages = [[bufferPool.createNewPageAndGetIdForColumn(i)] for i in range(num_columns)]# List of List of page ids [[Tail pageID for column 1], [Tail pageID for column 2], [Tail pageID for column 3]]
 
         
         self.bp_directory = dict() # Maps RID -> Base Record 
@@ -92,7 +92,7 @@ class Table:
         record_location = ()
         for i, value in enumerate(columns[0]):                  #LOOP THROUGH COLUMNS                            
             if col-mem-partial[i]:                              #IF COLUMN HAS PARTIAL PAGES IN MEMORY                          
-                page = getPageByID(col-mem-partial[i][0])       #RETRIEVE THE PAGE 
+                page = col-mem-partial[i][0]                    #RETRIEVE THE PAGE 
                 page.write(value)                               #WRITE VALUE TO THE PAGE 
                 record_location[i] = (page.pageID, offset)      #SAVE THE LOCATION FOR THAT COLUMN 
                 if not page.hasCapacity():                      #IF THE PAGE IS FULL AFTER INSERT 
@@ -103,7 +103,7 @@ class Table:
                 if not bufferpool.hasCapacity():                    #IF BUFFERPOOL IS FULL (OF FULL PAGES)
                     bufferpool.evict()                              #EVICT A PAGE BASED ON POLICY NOW THERE IS AN EMPTY SPACE IN MEMORY  
                     if col-disk-partial[i]:                         #IF THERE ARE PARTIAL PAGES ON THE DISK 
-                        page = getPageByID(col-disk-partial[i][0])  #RETRIEVE THE PAGE FROM DISK TO MEMORY 
+                        page = col-disk-partial[i][0]               #RETRIEVE THE PAGE FROM DISK TO MEMORY 
                         page.write(value)                           #WRITE VALUE TO THE PAGE 
                         record_location[i] = (page.pageID, offset)  #SAVE THE LOCATION FOR THIS COLUMN 
                         if not page.hasCapacity():                  #IF THE PAGE IS NOW FULL 
