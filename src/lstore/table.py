@@ -88,6 +88,51 @@ class Table:
         Each tuple in the list corresponds to a column/page for that column. 
         For example, RID = [(0,2), (3,2), (1,1)] -> The second column value is stored in self.base_pages[1][3] and is the 2nd element in that page 
         self.bp_index is used to track the index of the current base page as it fills 
+
+        record_location = ()
+        for i, value in enumerate(columns[0]):                  #LOOP THROUGH COLUMNS                            
+            if col-mem-partial[i]:                              #IF COLUMN HAS PARTIAL PAGES IN MEMORY                          
+                page = getPageByID(col-mem-partial[i][0])       #RETRIEVE THE PAGE 
+                page.write(value)                               #WRITE VALUE TO THE PAGE 
+                record_location[i] = (page.pageID, offset)      #SAVE THE LOCATION FOR THAT COLUMN 
+                if not page.hasCapacity():                      #IF THE PAGE IS FULL AFTER INSERT 
+                    col-mem-full[i].append(page)                #MOVE IT TO FULL PAGES IN MEMORY 
+                    col-mem-partial[i].remove(page)             #REMOVE IT FROM THE PARTIAL PAGES IN MEMORY 
+
+            else:                                                   #IF THERE ARE NO PARTIAL PAGES IN MEMORY 
+                if not bufferpool.hasCapacity():                    #IF BUFFERPOOL IS FULL (OF FULL PAGES)
+                    bufferpool.evict()                              #EVICT A PAGE BASED ON POLICY NOW THERE IS AN EMPTY SPACE IN MEMORY  
+                    if col-disk-partial[i]:                         #IF THERE ARE PARTIAL PAGES ON THE DISK 
+                        page = getPageByID(col-disk-partial[i][0])  #RETRIEVE THE PAGE FROM DISK TO MEMORY 
+                        page.write(value)                           #WRITE VALUE TO THE PAGE 
+                        record_location[i] = (page.pageID, offset)  #SAVE THE LOCATION FOR THIS COLUMN 
+                        if not page.hasCapacity():                  #IF THE PAGE IS NOW FULL 
+                            col-mem-full[i].append(page)            #ADD IT TO FULL PAGES IN MEMORY 
+                        else:                                       #IF PAGE IS PARTIAL STILL 
+                            col-mem-partial[i].append(page)         #ADD IT TO PARTIAL PAGES IN MEMORY 
+                        
+                    else:                                                   #IF THERE ARE NO PARTIAL PAGES ON DISK 
+                        pid = createNewPageAndGetId()                       #CREATE A NEW PAGE AND GET PAGE ID 
+                        bufferpool.pageDir[pid].write(value)                #WRITE VALUE TO THE PAGE 
+                        col-mem-partial[i].append(bufferpool.pageDir[pid])  #ADD THE PAGE TO PARTIAL PAGES IN MEMORY 
+                        record_location[i] = (pid, offset)                  #SAVE THE LOCATION FOR THAT COLUMN 
+
+                else:                                                       #IF THE BUFFERPOOL HAS EMPTY SPACE (NO PARTIALS AND SOME FULLS)
+                    pid = createNewPageAndGetId()                           #CREATE A NEW PAGE AND GET PAGE ID
+                    bufferpool.pageDir[pid].write(value)                    #WRITE VALUE TO THE PAGE 
+                    col-mem-partial[i].append(bufferpool.pageDir[pid])      #ADD PAGE TO PARTIAL PAGES IN MEMORY 
+                    record_location[i] = (pid, offset)                      #SAVE THE LOCATION FOR THIS COLUMN 
+
+        key_location[columns[0][0]] = [record_location]                     #INDEX THE LOCATION OF THE BASE RECORD EX: [((P-2, 0), (P-3, 3), (P-4, 2))]
+                
+            
+
+
+
+
+
+
+
         """
         rid = ()
 
@@ -156,6 +201,17 @@ class Table:
         base_record.rid = -1 #Invalidate the base record rid 
 
     def update(self, primary_key, *columns):
+        """
+        latest_update_loc = key_location[primary_key][-1]   #GET THE LOCATION OF THE LATEST TAIL RECORD FOR THER KEY
+        record_location = latest_update_loc                 #COPY THE LOCATION 
+        for i,value in enumerate(columns):                  #LOOP THROUGH THE COLUMNS 
+            if value != None:                               #IF COLUMN IS GETTING UPDATED 
+                insert column logic                         #FOLLOW THE INSERT LOGIN FOR THAT COLUMN 
+                record_location[i] = (page.pageID, offset)  #CHANGE RECORD LOCATION FOR THAT COLUMN TO UPDATED LOCATION 
+        
+        key_location[primary_key].append(record_location)   #APPEND TO LIST OF LOCATIONS, ONLY UPDATED COLUMNS WILL HAVE NEW LOCATION
+
+        """
         base_record = self.bp_directory[self.key_rid[primary_key][0]]
         #base_record = Record(self.key_rid[primary_key][0], primary_key, self.bp_directory[self.key_rid[primary_key][0]].columns)
         latest_tail = None 
@@ -222,6 +278,17 @@ class Table:
 
     def __merge(self):
         print("merge is happening")
+
+        """
+        for key in key_loc: 
+            slice key_loc[key] -> [loc1, loc2, loc3, loc4, loc5] -> [loc1, loc2, loc3, loc4],[loc5]
+                for loc in [loc1, loc2, loc3, loc4, loc5]:
+                    lock loc 
+                    delete loc 
+
+        
+        
+        """
         pass
     
  
