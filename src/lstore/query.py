@@ -222,6 +222,15 @@ class Query:
         """
         summationResult = 0
         keys = [start_range + i for i in range((end_range - start_range) + 1)] 
+        for key in keys:
+            location = self.key_rid[key][-1]
+            summationResult += self.bufferpool.getPageByID(location[aggregate_column_index][0]).read(location[aggregate_column_index][1]) 
+        return summationResult 
+
+
+
+        summationResult = 0
+        keys = [start_range + i for i in range((end_range - start_range) + 1)] 
         record_locations = []
         for key in keys: 
             if key in self.table.key_rid:
@@ -273,6 +282,15 @@ class Query:
         return summationResult 
         
         """
+        summationResult = 0
+        keys = [start_range + i for i in range((end_range - start_range) + 1)] 
+        for key in keys:
+            location = self.key_rid[key][relative_version]
+            summationResult += self.bufferpool.getPageByID(location[aggregate_column_index][0]).read() 
+        return summationResult 
+
+
+
         summationResult = 0
         for key in range(start_range, end_range + 1):
             # record = self.select_version(key, 0, [1 * self.table.num_columns], relative_version)

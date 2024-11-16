@@ -235,6 +235,27 @@ class Table:
         key_location[primary_key].append(record_location)   #APPEND TO LIST OF LOCATIONS, ONLY UPDATED COLUMNS WILL HAVE NEW LOCATION
 
         """
+        latest_update_loc = self.key_rid[primary_key][-1] 
+        page = self.bufferPool.getPageByID(latest_update_loc)
+        newColumns = []
+        for i in range(self.num_columns):
+            page = self.bufferPool.getPageByID(latest_update_loc[i][0]) 
+            newColumns.append(page.read(latest_update_loc[i][1]))
+        
+        for i, value in enumerate(columns):
+            if value != None:
+                newColumns[i] = value 
+            
+        self.insert(newColumns) 
+                
+
+
+
+
+
+
+
+
         base_record = self.bp_directory[self.key_rid[primary_key][0]]
         #base_record = Record(self.key_rid[primary_key][0], primary_key, self.bp_directory[self.key_rid[primary_key][0]].columns)
         latest_tail = None 
