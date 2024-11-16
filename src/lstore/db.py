@@ -114,6 +114,11 @@ class BufferPool:
 
         pass
 
+    def hasCapacityForColumn(self, index):
+        if len(self.colMemFull(index)) < self.maxColumnCapacity:
+            return True
+        return False        
+
     def createNewPageAndGetIdForColumn(self, index):
         """
         Description: This function creates a new page and returns the id of the page
@@ -128,59 +133,31 @@ class BufferPool:
         self.colMemPartial[index].append(page)
         # self.
         return page.pageID
-
-        # if len(self.pageDirectory[index][self.COLL_MEM_FULL_KEY]) + len(self.pageDirectory[index][self.COLL_MEM_PARTIAL_KEY]) > self.maxColumnCapacity:
-        #     self.evict()
-        
-        # page = Page("P-" + str(self.pageCount))
-        # self.pageDirectory[index][self.COLL_MEM_PARTIAL_KEY].append(page)
-        # self.pageCount += 1
-        # return page.pageID
     
-    # def createNewPageAndGetId(self):
+    def getPageFromDisk(self, pageID):
+        page = Page(pageID)
+        if not page.load():
+            raise FileExistsError
+        return page
+    
+
+    def evict(self):
+        # TODO: evict a page from pageDirectory        
+        pass
+    
+    # def getPageById(self, pageId):
     #     """
-    #     Description: This function creates a new page and returns the id of the page
+    #     Description: This function returns the page with the page ID
 
     #     Inputs: 
     #         N/A
     #     Outputs:
     #         Returns the page ID of the created page
     #     """
-    #     page_index = len(self.pageDirectory.keys()) + 1
-    #     page = Page("P-" + str(page_index))
 
-    #     if len(self.pageDirectory.keys()) > self.pageDirectoryCapacity:
-    #         self.evict()
-    #     self.pageDirectory[page.pageID] = page
-    #     self.dirtyPageList[self.dirtyPageList] = page
-
-    #     self.dirtyPageList += 1
-
-    #     return page.pageID
-    
-    def evict(self):
-        # TODO: evict a page from pageDirectory        
-        pass
-    
-    def getPageById(self, pageId):
-        """
-        Description: This function returns the page with the page ID
-
-        Inputs: 
-            N/A
-        Outputs:
-            Returns the page ID of the created page
-        """
-
-        if pageId not in self.pageDirectory:
-            # TODO: pass id onto the page class and try to load from disk
-            # TODO: If found in disk return page
-            # TODO: Else return an error
-            pass
-        return self.pageDirectory[pageId]        
-
-    def getPage(self):
-        pass
-
-    def evictPage(self):
-        pass
+    #     if pageId not in self.pageDirectory:
+    #         # TODO: pass id onto the page class and try to load from disk
+    #         # TODO: If found in disk return page
+    #         # TODO: Else return an error
+    #         pass
+    #     return self.pageDirectory[pageId]        
