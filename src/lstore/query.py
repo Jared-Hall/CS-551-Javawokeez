@@ -47,6 +47,41 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
+        """
+        select: 
+        return list of latest tail record objects with search_key at search_key_index. only return columns with 1 
+        final = [] 
+        for page in memory-full, memory-partial[search_key_index]:              #LOOP THROUGH ALL PAGES IN MEMORY (PARTIAL AND FULL)
+            if page.ValueIndex[search_key]:                                     #IF THE VALUE IS IN THE PAGE
+                for key,ver in page.ValueIndex[search_key]:                     #LOOP THROUGH THE KEYS THAT HAVE THAT VALUE 
+                    if ver == (len(key_locations[key]) - 1):                          #IF THE ABSOLUTE VER=LEN(RECORDS) THEN VALUE IS LATEST VALUE FOR TAIL RECORD
+                        columnsToAppend = []
+                        for i in numCols:                                       #LOOP THROUGH THE COLUMNS 
+                            if projected_columns_index[i] == 1:                 #IF WE WANT TO RETURN THIS COLUMN 
+                                data = key_locations[key][-1][i].read()         #READ THE VALUE FOR THE LATEST TAIL RECORD FOR THAT COLUMN 
+                                columnsToAppend.append(data)                    #APPEND THE COLUMN DATA TO THE COLUMNS TO RETURN 
+                                record = Record(columnsToAppend)                #CREATE A RECORD OBJECT WITH DESIRED COLUMNS 
+                        final.append(record)                                    #APPEND TO LIST OF RECORD OBJECTS 
+
+                    
+        for page in disk-full, disk-partial[search_key_index]:                  #LOOP THROUGH ALL PAGES IN DISK (FULL OR PARTIAL)
+            getPageByID(PID)                                                    #GET THE PAGE FROM DISK, THIS CALLS THE EVICTION POLICY 
+            if page.ValueIndex[search_key]:                                     #IF THE PAGE CONTAINS THE VALUE 
+                for key,ver in page.ValueIndex[search_key]:                     #LOOP THROUGH THE KEYS WITH THAT VALUE
+                    if ver == (len(key_locations[key]) - 1):                          #IF THE VERSION IS LATEST TAIL RECORD
+                        columnsToAppend = []
+                        for i in numCols:                                       #LOOP THROUGH COLUMNS
+                            if projected_columns_index[i] == 1:                 #IF WE WANT TO RETURN THIS COLUMN 
+                                data = key_locations[key][-1][i].read()         #READ THE DATA FOR THAT COLUMN FROM LATEST TAIL RECORD 
+                                columnsToAppend.append(data)                    #APPEND IT 
+                                record = Record(columnsToAppend)                #CREATE RECORD OBJECT
+                        final.append(record) 
+
+        return final                                                            #RETURN LIST OF RECORD OBJECTS 
+        
+        
+        
+        """
         # print(self.table.key_rid)
         record_locations = self.table.key_rid[search_key]  
         #print("LOCS: ", record_locations) 
@@ -93,6 +128,43 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
+        """
+        select_version: 
+        return list of relative version record objects with search_key at search_key_index. only return columns with 1 
+        final = [] 
+        for page in memory-full, memory-partial[search_key_index]:              #LOOP THROUGH ALL PAGES IN MEMORY (PARTIAL AND FULL)
+            if page.ValueIndex[search_key]:                                     #IF THE VALUE IS IN THE PAGE
+                for key,ver in page.ValueIndex[search_key]:                     #LOOP THROUGH THE KEYS THAT HAVE THAT VALUE 
+                    relative = ver - len(key_locations[key]                     #ABSOLUTE VERSION - numVersions = relative version 
+                    if relative_version == relative:                            #IF RELATIVE VERSION OF RECORD IS DESIRED 
+                        columnsToAppend = []
+                        for i in numCols:                                       #LOOP THROUGH THE COLUMNS 
+                            if projected_columns_index[i] == 1:                 #IF WE WANT TO RETURN THIS COLUMN 
+                                data = key_locations[key][relative][i].read()   #READ THE VALUE FOR THE RELATIVE VERSION OF COLUMN
+                                columnsToAppend.append(data)                    #APPEND THE COLUMN DATA TO THE COLUMNS TO RETURN 
+                                record = Record(columnsToAppend)                #CREATE A RECORD OBJECT WITH DESIRED COLUMNS 
+                        final.append(record)                                    #APPEND TO LIST OF RECORD OBJECTS 
+
+                    
+        for page in disk-full, disk-partial[search_key_index]:                  #LOOP THROUGH ALL PAGES IN DISK (FULL OR PARTIAL)
+            getPageByID(PID)                                                    #GET THE PAGE FROM DISK, THIS CALLS THE EVICTION POLICY 
+            if page.ValueIndex[search_key]:                                     #IF THE PAGE CONTAINS THE VALUE 
+                for key,ver in page.ValueIndex[search_key]:                     #LOOP THROUGH THE KEYS WITH THAT VALUE
+                    relative = ver - len(key_locations[key]                     #ABSOLUTE VERSION - numVersions = relative version 
+                    if relative_version == relative:                            #IF RELATIVE VERSION OF RECORD IS DESIRED 
+                        columnsToAppend = []
+                        for i in numCols:                                       #LOOP THROUGH COLUMNS
+                            if projected_columns_index[i] == 1:                 #IF WE WANT TO RETURN THIS COLUMN 
+                                data = key_locations[key][relative][i].read()   #READ THE DATA FOR RELATIVE VERSION OF THAT COLUMN
+                                columnsToAppend.append(data)                    #APPEND IT 
+                                record = Record(columnsToAppend)                #CREATE RECORD OBJECT
+                        final.append(record) 
+
+        return final                                                            #RETURN LIST OF RECORD OBJECTS 
+        
+        
+        
+        """
         try:
             record_locations = self.table.key_rid[search_key] 
             
@@ -138,6 +210,25 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum(self, start_range, end_range, aggregate_column_index):
+        """
+        summationResult = 0
+        keys = [start_range + i for i in range((end_range - start_range) + 1)] 
+        for key in keys:
+            location = key_location[key][-1]
+            summationResult += location[aggregate_column_index].read() 
+        
+        return summationResult 
+        
+        """
+        summationResult = 0
+        keys = [start_range + i for i in range((end_range - start_range) + 1)] 
+        for key in keys:
+            location = self.key_rid[key][-1]
+            summationResult += self.bufferpool.getPageByID(location[aggregate_column_index][0]).read(location[aggregate_column_index][1]) 
+        return summationResult 
+
+
+
         summationResult = 0
         keys = [start_range + i for i in range((end_range - start_range) + 1)] 
         record_locations = []
@@ -181,6 +272,25 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
+        """
+        summationResult = 0
+        keys = [start_range + i for i in range((end_range - start_range) + 1)] 
+        for key in keys:
+            location = key_location[key][relative_version]
+            summationResult += location[aggregate_column_index].read() 
+        
+        return summationResult 
+        
+        """
+        summationResult = 0
+        keys = [start_range + i for i in range((end_range - start_range) + 1)] 
+        for key in keys:
+            location = self.key_rid[key][relative_version]
+            summationResult += self.bufferpool.getPageByID(location[aggregate_column_index][0]).read() 
+        return summationResult 
+
+
+
         summationResult = 0
         for key in range(start_range, end_range + 1):
             # record = self.select_version(key, 0, [1 * self.table.num_columns], relative_version)
