@@ -1,24 +1,70 @@
 """
 Documentation for the page class.
-Author: Nabil Abdel-Rahman nabilabdel-rahman@outlook.com, Jared Hall jhall10@uoregon.edu
+Author:Jared Hall - jhall10@uoregon.edu, Nabil Abdel-Rahman - nabilabdel-rahman@outlook.com, 
 Description:
     This file contains our implementation of the core storage data structure for our L-Store database.
     The description of this data structure is as follows:
 
 Notes:
-A data strucutre holding indices for various columns of a table. 
-Key column should be indexd by default, other columns can be indexed through this object. 
-Indices are usually B-Trees, but other data structures can be used as well.
+1. Completely rewrote this class for m2. We decieded to completely forgo the use of b+-trees entirely
+   in favour of maps which are much faster at small scales.
+2. Index objects are table specific. So each table has it's own index.
+
+Indexes:
+-----------------------------------------------------------------------------------------------------------------------
+    Index (PK): Primary Keys -> Physical Locations
+    Description: This index maps primary keys to the physical locations in the page where the data is stored.
+                 Takes the form of a dictionary of lists where the key is the PK and the value is the record in tuple format.
+                 Tuple format: (col_1, col_2, ..., col_|columns|), where each column (e.g., col_1) is represented by a tuple (<PID>, <idx>).
+                 <PID> is ID of the specific page where the data is stored, <idx> is the index of the data in the data array
+    Format:
+    {
+        <primary key> : [((<PID>, <idx>), (<PID>, <idx>), ...), ... ]
+    }
+-----------------------------------------------------------------------------------------------------------------------    Index (Bufferpool):
+    Index (BP): Column -> Pages 
+    Description: The Buffer Pool (BP) index holds references to every page in the DB, both in memory and on disc.
+                 The BP index is a 2-stage index: 
+                 1st Stage: [Column1_Index, Column2_index, ...]
+                 2nd Stage: column-specific index
+                 Each column index has the following format:
+                 [
+                    [<PageRef>, ...], # In-memory (Empty/Partially filled pages)
+                    [<PageRef>, ...], # In-memory (Full pages)
+                    [<PID>, ...], # On disk (Empty/Partially filled pages)
+                    [<PID>, ...], # On disk (Full pages)
+                 ]
+    Format:
+    [
+        [
+            [<PageRef>, ...],
+            [<PageRef>, ...],
+            [<PID>, ...],
+            [<PID>, ...]
+        ], 
+        ...
+    ]
+-----------------------------------------------------------------------------------------------------------------------                       
+    Index (VK): Values -> Keys
+    Description: The Value-Key (VK) index is a level 2 column-wise index that maps values in a column to the
+                 primary keys of records with that value in this column. It is also version specific.
+                 The VK index is a level 2 index sine the BP index points to an entry in this index.
+    Format:
+    {
+        <Value>: {
+                    <Version> : [<Primary Key>, ...],
+                 },
+    }
+-----------------------------------------------------------------------------------------------------------------------                       
 """
-from lstore.bTree import BPlusTree
 
 class Index:
     """
-    The index class.
-    This allows for fast retreval of records stored in the database for query and updating.
-    Structure:
-    (index) -> tree of records, where the leafs are (rid, pointer).
-    (index) -> HashMap of columns for the table: {cID:<pointer_to_column>}
+    Description: The index class allows the DB to quickly and efficently get references to objects/records in the DB.
+                 The main focus was to optimise speed and efficiency over space.
+    
+    
+
     """
 
     def __init__(self, table):
@@ -29,137 +75,6 @@ class Index:
         Outputs:
             output <type>: <description>
         """
-        self.table = table
-        self.indices = [None] * table.num_columns
-        self.indices[self.table.key] = BPlusTree()
-
-        #Step-01: Build the record index (b+ tree)
-        self.tree = BPlusTree()
-        #step-02: Build Hashmap of columns from table.num_columns
-        self.column_indices = {}
-
-
-    def _getRecord(self, rid):
-        """
-        Description: returns the index for the specified record 
-        Inputs: 
-            varName <type>: <description>
-        Outputs:
-            output <type>: <description>
-        """
-        return self.tree.query(rid)
-
-    def _getRangeRecord(self, startID, endID):
-        """
-        Description: returns the locations of all records between "startID" and endID.
-        Inputs: 
-            varName <type>: <description>
-        Outputs:
-            output <type>: <description>
-        """
-        return self.tree.rangeQuery(startID, endID)
-    
-    def _addColumn(self, cID, columnPointer):
-        """
-        Description: Inserts the column ID along with it's key
-        Inputs: 
-            varName <type>: <description>
-        Outputs:
-            output <type>: <description>
-        """
-        self.column_indices[cID] = columnPointer
-
-
-    def _createIndex(self, key, value):
-        """
-        Description: Inserts the record into the b+ Tree and creates a UID, which is then returned
-        Inputs: 
-            varName <type>: <description>
-        Outputs:
-            output <type>: <description>
-        """
-        return self.tree.insert(key, value)
-
-    def _dropColumn(self, cID):
-        """
-        Description: drop a column from the HashMap and delete every instance of that column in every record (Note:  may not actually need this )
-        Inputs: 
-            varName <type>: <description>
-        Outputs:
-            output <type>: <description>
-        """
-        del self.column_indices[cID]
-
-    def updateIndex(self, key, value, cID):
-        if(self.indices[cID].query(key) == False):
-            values = []
-            values.append(value)
-            self.indices[cID].insert(key, values)
-
-
-    def _locate(self, columnID, value):
-        """
-        Description: returns the location of all records with the given value on column by columnID
-        Inputs: 
-            varName <type>: <description>
-        Outputs:
-            output <type>: <description>
-        """
-        if self.column_indices[columnID] is None:
-            return []
-        return self.column_indices[columnID].get(value, [])
-
-
-    def _locate_range(self, begin, end, cID):
-        """
-        Description: Returns the RIDs of all records with values in column specified by cID between "begin" and "end"
-        Inputs: 
-            varName <type>: <description>
-        Outputs:
-            output <type>: <description>
-        """
-        if self.column_indices[cID] is None:
-            return []
         
-        rids = []
-        for value in range(begin, end + 1):
-            rids.extend(self.column_indices[cID].get(value, []))
-        
-        return rids
-
-    def locate(self, columnID, value):
-        tree = self.indices[columnID]
-        retVal = tree.query(value)
-        if(retVal != False):
-            return retVal
-        else:
-            return False
-    
-    def locateRange(self, start, stop, cID):
-        return self.indices[cID].rangeQuery(start, stop)
-    
-#=======================================================================================================================
-    def create_index(self, cID):
-        """
-        Description: <desc>
-        Inputs: 
-            varName <type>: <description>
-        Outputs:
-            output <type>: <description>
-        """
-        if self.column_indices[cID] is None:
-            self.column_indices[cID] = {}
-
-    def drop_index(self, cID):
-        """
-        Description: Drop index of specific column
-        Inputs: 
-            varName <type>: <description>
-        Outputs:
-            output <type>: <description>
-        """
-        if self.column_indices[cID] is not None:
-            self.column_indices[cID] = None 
-
 if(__name__=="__main__"):
     index = Index()

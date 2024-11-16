@@ -16,7 +16,7 @@ Modifications:
 """
 class Page:
 
-    def __init__(self, pid, capacity=4096, size=8, fromFile=False):
+    def __init__(self, pid, capacity=4096, size=8):
         """
         Description: The physical page of our columnar storage. A page contains a single column of data.
         Notes: pid's must be unique since it is both an identifier for the page and it's data file.
@@ -27,8 +27,7 @@ class Page:
             pid (str): A unique numerical intentifier for this page. Format: "P-<int>"
             capacity (int): A numerical value which determines the size of the storage unit.
             size (int): A numerical value containing the fixed length of all data to be inserted into the column.
-            fromFile (bool): A boolean flag that tells the page to load data and index from file when
-                             building the page. By default pages are build in-memory unless this is set to True.
+
         Outputs:
             Page Object
         
@@ -40,6 +39,15 @@ class Page:
             data (ByteArray): The actual data of the column in bytes
             maxEntries (int): The maximum number of entries (max = capacity//entrySize)
             entrySize (int): The fixed size of each entry.
+            pin (int): A variable that contains the number of active transactions on this page.   
+            pageIndex (dict): A dictionary version based value-key 2nd level Index (m1: Bonus)
+            
+            rIndex (list): A list of open indecees in the data array (m2 Bonus: efficient compactless storage).
+            Format:
+                            [idx_1, idx_2, ..., idx_k]
+            LFU (float): (m2 Bonus: Eviction Policy) This variable contains a measurement of the "rate of use" that a page sees.
+                         The rate of use is calculated by taking the number of times a page has been read from or written to
+                         in a fixed cycle and dividing this by a fixed time window.  
         """
         self.numEntries = 0
         self.dTail = 0
@@ -47,9 +55,9 @@ class Page:
         self.capacity = 0
         self.entrySize = size
         self.data = None
-        self.pIndex = {}
         self.LFU = 0
-        self.pin = False
+        self.pin = -1
+        self.availableOffsets = None
         
         if(type(pid) != type("str") or "P-" not in pid):
             err = "ERROR: Parameter <pid> must be a string in the format P-<int>."
@@ -57,20 +65,16 @@ class Page:
         else:
             self.pageID = pid
             
-        if(fromFile):
-            self.load()
-            self.capacity = capacity
-            self.maxEntries = capacity//size
-        elif(type(capacity) == type(1) and capacity > 0):
+        if(type(capacity) == type(1) and capacity > 0):
             self.data = bytearray(capacity)
             self.capacity = capacity
             self.maxEntries = capacity//size
-            self.rIndex = [-1]*self.maxEntries
+            self.availableOffsets = [x for x in range(self.maxEntries)]
         else:
             err = "ERROR: Parameter <capacity> must be a non-zero integer."
             raise TypeError(err)
 
-    def has_capacity(self, size):
+    def has_capacity(self):
         """
         Description: This function checks if there is enough space to write to the page.
         Inputs:
@@ -78,62 +82,54 @@ class Page:
         Ouputs:
             Boolean: <True> if there is enough space, else <False>
         """
-        if(self.numEntries < self.maxEntries):
+        if(len(self.availableOffsets) > 0):
             return True
         else:
             return False
     
     def save(self):
         """
-        Description: This method saves the page to disk.
+        Description: This method saves the page data and it's available offsets to disk.
+        """
+        status = True
+        #Step-01: Write the page index
+        with open("storage/"+self.pageID+".offsets", "wb") as offsetFile:
+            offsetFile.write(','.join(self.availableOffsets))
+
+        with open("storage/"+self.pageID+".bin", "wb") as dataFile:
+            dataFile.write(bytes(self.data))
+        return status
+
+    def load(self):
+        """
+        Description: This method loads the page (data and index) from disk.
         Data structures:
-        dataIndex:
+        pageIndex:
         {
             <value>: {
-                        <version> : <key>,
+                        <version> : [<key>, ...],
+                        ...
                     },
+                    ...
         }
 
         removeIndex: 
         [idx, idx, idx, idx, ...]
 
-        Format:
-        Filename: <pid>.index
-        rid:idx, rid:idx ,... <- this is the page index
+        Format (PID.index):
+        Page Index:
+        <value>:<version1>#<key1>#<key2>#<key3>#...#<keyn>|<version2>#...#,<value2>:...
+        Remove Index:
         idx,idx,idx ,... <- this is the remove index
-        [data]
-        )0xBBBBBBBB, 0xBBBBBBB...
+        
+        Format(PID.bin): 
+        0xBBBBBBBB, 0xBBBBBBB...
         """
-        #Step-01: Write the page index
-        with open("storage/"+self.pid+".index", "w") as idxFile:
-            items = self.pIndex.items()
-            rep = ""
-            for item in items:
-                rep += str(item[0])+":"+str(item[1])+","
-            rep = rep[:-1]
-            idxFile.write(rep+"\n")
-            idxFile.write(','.join(self.rIndex)+'\n')
-        with open("storage/"+self.pid+".data", "wb") as dataFile:
-            dataFile.write(bytes(self.data))
-
-    def load(self):
-        """
-        Description: This method loads the page (data and index) from disk.
-        Expected Format:
-        [pIndex]
-        rid:idx,rid:idx,...
-        [rIndex]
-        (idx, idx, idx,...
-        [data]
-        )0xBBBBBBBB0xBBBBBBB...
-        """
-        with open("storage/"+self.pid+"index", "r") as idxFile:
-            pIndex = idxFile.readline().split(",")
-            rIndex = idxFile.readline().split(",")
-            self.pIndex = {int(key):int(value) for key,value in (item.split(":") for item in pIndex)}
-            self.rIndex = [(int(idx) for idx in rIndex)]
-        with open("storage/"+self.pid+".data", "rb") as dataFile:
-            self.data = dataFile.read()
+        status = True
+        with open("storage/"+self.pid+".bin", "rb") as dataFile:
+            self.data = bytearray(dataFile.read())
+        
+        return status
 
     def _encode(self, data):
         if(type(data) == str):
@@ -144,46 +140,77 @@ class Page:
     def _decode(self, data):
         return data.decode('utf-8')
 
-    def write(self, rid, data):
+    def _insertData(self, data):
+        """
+        Description: This method inserts the data and returns the index
+        Inputs:
+            data (bytes): This variable contains a bytes encoded string.  
+        """
+        rawData = self._encode(str(value))
+        index = -1
+        if(len(self.availableOffsets) > 0):
+            index = self.rIndex.pop()
+        else:
+            index = self.tail
+            self.tail += 8
+        self.data[index:(index+8)] = rawData
+
+
+    def write(self, value):
         """
         Description: A simple write method. Will append new data to array.
         Inputs:
-            data (any): The data you wish to store. Any data type is fine since I do the encoding here
+            key (any): The primary key for the data. Will be encoded as a string.
+            value (any): The data value to be stored. Will be encoded as a string.
+            version (int): The absolute version of the data. 0 means it belongs to a BR, all else is TR data
+        Outputs:
+            index (int): The integer index that the data was stored at.
         """
-        data = self._encode(data)
-        pos = -1
-        if(len(self.rIndex) > 0):
-            pos = self.rIndex.pop()
+        rawData = self._encode(str(value))
+        index = -1
+        if(len(self.availableOffsets) > 0):
+            index = self.availableOffsets.pop()
         else:
-            pos = self.tail
+            index = self.tail
             self.tail += 8
-        self.data[pos:(pos+8)] = data
-        self.pIndex[rid] = pos
-        self.numEntries += 1
+        self.data[index:(index+8)] = rawData
+        return index
+        
 
-    def read(self, rid):
+    def read(self, index):
         """"
         Description: A simple read method. Returns data by index from the page if the key exists.
         Inputs:
             index (int): the index of the value you wanna read.
         """
-        if(rid in self.pIndex):
-            idx = self.rIndex[rid]
-            return self.data[idx:(idx+8)]
-        else:
-            return False
+        return self.data[index:(index+8)]
         
 
 
 if(__name__== "__main__"):
-    p = Page(20)
-    print(p.capacity)
-    a = bytearray('Hello', 'utf-8')
-    b = bytearray('World', 'utf-8')
-    p.write(a)
-    print(p.data)
-    p.write(b)
-    print(p.data)
-    print(p.read(0).decode('utf-8'))
-    print(p.read(1).decode('utf-8'))
+    p1 = Page('P-1')
+    print("Page created (capacity):", p1.capacity)
+    data = []
+    for version in [0,1,2,3]:
+        for key in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
+            value = key+10+version
+            data.append((key, value, version))
+    
+    index = {}
+    for item in data:
+        index[item[0]] = p1.write(item[2])
+        print("Inserted: ", data, " - @ index:", index[item[0]])
+    
+    for item in data:
+        print("Reading data for key("+str(item[0])+"): ", p1.read(index[item[0]]))
+    
+    print("===Save Test===")
+    print("Status: ", p1.save())
+    print("===============")
+
+    print("===Load Test===")
+    p2 = Page(p1.pageID)
+    st = p2.load()
+    print("Status: ", st)
+    print("Correct: ", p2.data == p1.data, p2.availableOffsets == p1.availableOffsets)
 
