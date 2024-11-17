@@ -211,6 +211,20 @@ class Table:
  
 
     def delete(self, primary_key):
+        for loc in self.index.pkl_index[primary_key]:
+             #loc = ((pid, idx) () () ())
+             for i, pid in enumerate(loc):
+                page = self.bufferpool.getPageByID(pid[0])
+                data = page.read(pid[1]) 
+                page.remove(pid[1]) 
+                for version in self.index.vk_index[i][data]: 
+                    if primary_key in self.index.vk_index[i][data][version]:
+                        self.index.vk_index[i][data][version].remove(primary_key)
+      
+        del self.index.pkl_index[primary_key] 
+        return
+    
+
         for loc in self.key_rid[primary_key]: 
             self.delete_version(loc) 
 
@@ -253,7 +267,7 @@ class Table:
                 newColumns[i] = value 
             
         self.insert(newColumns) 
-                
+        return
 
 
 
@@ -328,6 +342,71 @@ class Table:
         #OPEN PAGE WITH PID 
         #DELETE DATA AT OFFSET 
         return 
+    
+    def save(self): 
+        """
+        save mem pages to disk: 
+
+        """
+        for PID in self.bufferpool.getMemPages():
+            self.bufferpool.savePage(PID)
+
+        with open(self.path+str(self.name)+".txt", "w") as file:
+            file.write(f"{self.num_columns}\n")
+            file.write(f"{self.key}\n")
+
+            for key, value in self.bufferpool.page_directory:
+                file.write(f"{key}:{value}\n")
+            
+            file.write("Index") 
+            file.write(str(self.index))
+
+            #num_columns
+            #key
+            #page dir
+            #pid:()
+            #pid:1
+            #....
+            #Index 
+            #PKL
+            #VKL 
+
+            #loop the lines 
+            #if value[0] is 0:
+            #add to colDiskPartial[]
+            #if value is !:
+            #add to colDiskFull 
+    
+    def load(self): 
+        with open(self.path+str(self.name)+".txt", "r") as file:
+            self.num_columns = file.readline() 
+            self.key = file.readline() 
+            while line != "Index": 
+                line = file.readline()
+                key, value = line.split(":") 
+            
+                tuple_of_integers = tuple([int(x) for x in value[:-1].strip('()').split(',')])
+                self.bufferpool.page_directory[key] = tuple_of_integers 
+                colIdx = tuple_of_integers[2]
+                if tuple_of_integers[0]: 
+                    self.bufferpool.colDiskFull[colIdx].append(key) 
+                else:
+                    self.bufferPool.colDiskPartial[colIdx].append(key)
+                
+            pkl_str = file.readline()   
+            vk_str = file.readline() 
+            self.index.load(pkl_str, vk_str) 
+
+        
+
+                
+
+
+            
+        
+
+               
+        
        
     
     
