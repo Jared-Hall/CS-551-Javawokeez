@@ -135,32 +135,3 @@ class Page:
             index (int): the index of the value you wanna delete.
         """
         self.availableOffsets.append(index)
-
-        
-if(__name__== "__main__"):
-    p1 = Page('P-1')
-    print("Page created (capacity):", p1.capacity)
-    data = []
-    for version in [0,1,2,3]:
-        for key in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
-            value = key+10+version
-            data.append((key, value, version))
-    
-    index = {}
-    for item in data:
-        index[item[0]] = p1.write(item[2])
-        print("Inserted: ", data, " - @ index:", index[item[0]])
-    
-    for item in data:
-        print("Reading data for key("+str(item[0])+"): ", p1.read(index[item[0]]))
-    
-    print("===Save Test===")
-    print("Status: ", p1.save())
-    print("===============")
-
-    print("===Load Test===")
-    p2 = Page(p1.pageID)
-    st = p2.load()
-    print("Status: ", st)
-    print("Correct: ", p2.data == p1.data, p2.availableOffsets == p1.availableOffsets)
-

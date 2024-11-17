@@ -5,10 +5,35 @@ Description:
     This file contains the implementation for the database. 
     The database handles creating, deleting, and retrieving tables 
 
+(m2 notes) 
+Bufferpool Memory Management: Column -> Pages 
+Description: The Buffer Pool (BP) holds references to every page in the DB, both in memory and on disc.
+                The BP index is a 2-stage index: 
+                1st Stage: [Column1_Index, Column2_index, ...]
+                2nd Stage: column-specific index
+                Each column index has the following format:
+                [
+                    [<PageRef>, ...], # In-memory (Empty/Partially filled pages)
+                    [<PageRef>, ...], # In-memory (Full pages)
+                    [<PID>, ...], # On disk (Empty/Partially filled pages)
+                    [<PID>, ...], # On disk (Full pages)
+                ]
+Format:
+[
+    [
+        [<PageRef>, ...],
+        [<PageRef>, ...],
+        [<PID>, ...],
+        [<PID>, ...]
+    ], 
+    ...
+]
+
 """
 
 from lstore.table import Table
 from lstore.page import Page
+from lstore.index import Index
 
 
 class Database():
@@ -16,7 +41,6 @@ class Database():
     def __init__(self):
         self.tables = {} #Store name and tables as key:value
         self.path = None 
-        pass
 
     # Not required for milestone1
     def open(self, path):
@@ -32,7 +56,6 @@ class Database():
         """
 
         self.path = path
-        pass
 
     def close(self):
         """
@@ -64,7 +87,6 @@ class Database():
 
                 
         self.path = None 
-        pass
 
     """
     # Creates a new table
@@ -74,8 +96,9 @@ class Database():
     """
     def create_table(self, name, num_columns, key_index):
 
-        bufferPool = BufferPool(num_columns)
-        table = Table(name, num_columns, key_index, bufferPool)
+        bufferPool = BufferPool(num_columns, index)
+        index = Index(num_columns)
+        table = Table(name, num_columns, key_index, bufferPool, index)
         self.tables[name] = table #Store the table
         return table
 
@@ -127,16 +150,10 @@ class Database():
         self.tables[name] = table
         return table 
 
-        if name in self.tables: 
-            return self.tables[name]
-        else:
-            raise Exception("Table not in database")
-        pass
-
 
 class BufferPool:
 
-    def __init__(self, num_columns):
+    def __init__(self, num_columns, path):
         """
         Description: The BufferPool Manager for the Database
         Inputs: 
@@ -144,27 +161,10 @@ class BufferPool:
         Outputs:
             N\A 
         """
-#         Table 5 columns 3*pageMax Indexes (5*PageMax pages)
-        # {
-        #     col1-Mem(Full): [<PageRef3>,     <PageRef4>]
-        #                          Full (1.2)   FULL (LFU: 0.001)
-            
-        #     col1-Mem(Partial):  [<PageRef5>]
-        #                           n/2 (LFU: 0.0000001)
-
-        #     col1-Disk(Full): ["PID1", "PID2", ...]
-        #                        Full   Full
-            
-        #     col-Disk(partial): [("PID7", 510), .... ("PID10", 236)]
-        #                                 cap
-        # } 
-        # Test value
-
 
         self.pageDirectoryCapacity = 10000000
-
-        # self.pageIds = [] # Keeps track of all Page ids
-        # self.pageDirectory = {} # Maps Page Id -> Page
+        self.pageDirectory = {}
+        self.path = path
 
         # col-mem-partial & col-mem-full make up the complete buffer(memory) pool of Page objects
         self.colMemPartial = [[]] * num_columns # Every element is an array that stores Page objects at the corresponding column index
@@ -179,21 +179,13 @@ class BufferPool:
         self.pageCount = 0
         self.dirtyPageList = [None] * self.pageDirectoryCapacity
         self.dirtyPageListTail = 0
-        pass
-
-    def hasCapacity(self):
-        """
-        Checks if Bufferpool has maximum ampunt of ful pages possible
-        """
-
-        pass
 
     def hasCapacityForColumn(self, index):
         if len(self.colMemFull(index)) < self.maxColumnCapacity:
             return True
         return False        
 
-    def createNewPageAndGetIdForColumn(self, index):
+    def createPage(self, index):
         """
         Description: This function creates a new page and returns the id of the page
 
@@ -202,36 +194,50 @@ class BufferPool:
         Outputs:
             Returns the page ID of the created page
         """
-        page = Page("P-" + str(self.pageCount))
-        
+        PID = "P-" + str(self.pageCount)
+        page = Page(PID)
         self.colMemPartial[index].append(page)
-        # self.
-        return page.pageID
+        self.pageDirectory[PID] = page
+        self.pageCount += 1
+        return PID
     
-    def getPageFromDisk(self, pageID):
-        page = Page(pageID)
-        if not page.load():
-            raise FileExistsError
+    def loadPage(self, pid):
+        if(pid in self.pageDirectory):
+            idx = self.pageDirectory[pid] #(isFull, colIdx, index in BP)
+        page = Page(pid)
+        if(isFull):
+            status = page.load(self.path, "-full")
+            self.colMemFull[column].append(page)
+        else:
+            status = page.load(self.path, "-partial")
+            self.colMemPartial[column].append(page)
+        if(status):
+            raise FileExistsError("Page: "+pageID+"Does not exist.")
         return page
     
+    def savePage(self, pid):
+        """
+        Description: This method writes the page to disk and removes it from the active bufferpool.
+        Inputs:
+            pageID(str): The ID of the page we want to write to disk.
+        """
+        if(pid in self.pageDirectory):
+            idx = self.pageDirectory[pid] #(isFull, colIdx, index in BP)
+            if(idx[0]): #full page
+                page = self.colMemFull[idx[1]].pop(idx[2])
+                page.save(self.path, "-full")
+                index = (True, idx[1], len(self.colDiskFull))
+                self.colDiskFull[idx[1]].append(page.pageID)
+                self.pageDirectory[pid] = index
+            else:
+                page = self.colMemPartial[idx[1]].pop(idx[2])
+                page.save(self.path, "-partial")
+                index = (False, idx[1], len(self.colDiskPartial))
+                self.colDiskPartial[idx[1]].append(page.pageID)
+                self.pageDirectory[pid] = index
+            return True
+        return False
 
     def evict(self):
         # TODO: evict a page from pageDirectory        
-        pass
-    
-    # def getPageById(self, pageId):
-    #     """
-    #     Description: This function returns the page with the page ID
-
-    #     Inputs: 
-    #         N/A
-    #     Outputs:
-    #         Returns the page ID of the created page
-    #     """
-
-    #     if pageId not in self.pageDirectory:
-    #         # TODO: pass id onto the page class and try to load from disk
-    #         # TODO: If found in disk return page
-    #         # TODO: Else return an error
-    #         pass
-    #     return self.pageDirectory[pageId]        
+        pass       

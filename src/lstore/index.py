@@ -1,3 +1,4 @@
+from lstore.page import Page
 """
 Documentation for the page class.
 Author:Jared Hall - jhall10@uoregon.edu, Nabil Abdel-Rahman - nabilabdel-rahman@outlook.com, 
@@ -12,11 +13,12 @@ Notes:
 
 Indexes:
 -----------------------------------------------------------------------------------------------------------------------
-    Index (PK): Primary Keys -> Physical Locations
+    Index (PKL): Primary Keys -> Physical Locations (records)
     Description: This index maps primary keys to the physical locations in the page where the data is stored.
                  Takes the form of a dictionary of lists where the key is the PK and the value is the record in tuple format.
                  Tuple format: (col_1, col_2, ..., col_|columns|), where each column (e.g., col_1) is represented by a tuple (<PID>, <idx>).
                  <PID> is ID of the specific page where the data is stored, <idx> is the index of the data in the data array
+                 The list is in sorted format: [br, tr, tr, tr, .., latest_tr]
     Format:
     {
         <primary key> : [((<PID>, <idx>), (<PID>, <idx>), ...), ... ]
@@ -67,14 +69,21 @@ class Index:
 
     """
 
-    def __init__(self, table):
+    def __init__(self, numColumns):
         """
         Description: the constructor for the index.
         Inputs: 
-            varName <type>: <description>
-        Outputs:
-            output <type>: <description>
+            The index is empty initially and only gets populated as things get created or loaded.
         """
+        self.pkl_index = {}
+        self.vk_index = {}
+
+        #Build the BP index
+        self.bp_index = [[[], [], [], []] for x in range(numColumns)]
+    
+    
+
+       
         
 if(__name__=="__main__"):
     index = Index()
