@@ -34,6 +34,7 @@ Format:
 from lstore.table import Table
 from lstore.page import Page
 from lstore.index import Index
+from os import remove
 
 
 class Database():
@@ -153,17 +154,28 @@ class Database():
 
 class BufferPool:
 
-    def __init__(self, num_columns, path):
+    def __init__(self, num_columns, path, maxPages=10):
         """
         Description: The BufferPool Manager for the Database
         Inputs: 
-            N/A
+            num_columns (int): The number of columns for this table.
+            path (str): The path variable to the location on disk for storing files.
+            maxPages (int): The maximum number of pages that can be stored in memory for each column.
         Outputs:
             N\A 
+        
+        Internal Objects:
+            pageDirectory (dict): Maps Page IDs to metadata about that page. 
+                                  Format: {<pid> : (isFull, inMem, columnIdx, pageIdx)}
+            path (str) : The path for the bufferpool. Composed of: dbDir/tableDir/
+            colMemPartial (lst): [ColumnIndex_1, ColumnIndex_1, ...], col1_index: [<PageRef>, ...]
+            colMemFull (lst): [ColumnIndex_1, ColumnIndex_1, ...], col1_index: [<PageRef>, ...]
+            colDiskPartial (lst): [ColumnIndex_1, ColumnIndex_1, ...], col1_index: [<PageRef>, ...]
+            colDiskFull (lst): [ColumnIndex_1, ColumnIndex_1, ...], col1_index: [<PageRef>, ...]
         """
 
         self.pageDirectoryCapacity = 10000000
-        self.pageDirectory = {}
+        self.pageDirectory = {} 
         self.path = path
 
         # col-mem-partial & col-mem-full make up the complete buffer(memory) pool of Page objects
@@ -174,7 +186,7 @@ class BufferPool:
         self.colDiskPartial = [[]] * num_columns # Every element is an array that stores Page ids at the corresponding column index
         self.colDiskFull = [[]] * num_columns # Every element is an array that stores Page ids at the corresponding column index
 
-        self.maxColumnCapacity = 10
+        self.maxColumnCapacity = maxPages
 
         self.pageCount = 0
         self.dirtyPageList = [None] * self.pageDirectoryCapacity
@@ -183,64 +195,120 @@ class BufferPool:
     def hasCapacityForColumn(self, index):
         if len(self.colMemFull(index)) < self.maxColumnCapacity:
             return True
-        return False        
+        return False    
 
-    def createPage(self, index):
-        """
-        Description: This function creates a new page and returns the id of the page
+    def getMemPages(self):
+         """
+        Description: This function creates a new page and adds it to the specified column index
 
         Inputs: 
             N/A
+        Outputs:
+            Returns a list of pageIDs for every page in memory
+        """
+        # TODO
+        pass   
+
+    def createPage(self, columnIdx):
+        """
+        Description: This function creates a new page and adds it to the specified column index
+
+        Inputs: 
+            columnIdx (int): An integer index of the column.
         Outputs:
             Returns the page ID of the created page
         """
         PID = "P-" + str(self.pageCount)
         page = Page(PID)
-        self.colMemPartial[index].append(page)
-        self.pageDirectory[PID] = page
+        page.save() #initial save to create the files
+        self.pageDirectory[PID] = (0, 1, columnIdx, len(self.colMemPartial))
+        self.colMemPartial[columnIdx].append(page)
         self.pageCount += 1
-        return PID
     
-    def loadPage(self, pid):
-        if(pid in self.pageDirectory):
-            idx = self.pageDirectory[pid] #(isFull, colIdx, index in BP)
-            if(idx[0]): #full page
-                page = self.colMemFull[idx[1]].pop(idx[2])
-                page.save(self.path, "-full")
-                index = (True, idx[1], len(self.colDiskFull))
-                self.colDiskFull[idx[1]].append(page.pageID)
-                self.pageDirectory[pid] = index
-            else:
-                page = self.colMemPartial[idx[1]].pop(idx[2])
-                page.save(self.path, "-partial")
-                index = (False, idx[1], len(self.colDiskPartial))
-                self.colDiskPartial[idx[1]].append(page.pageID)
-                self.pageDirectory[pid] = index
-            return page
-        return False
-    
-    def savePage(self, pid):
+    def deletePage(self, PID):
+        """
+        Description: This function deletes a page and all of it's data including the data on disk.
+
+        Inputs: 
+            PID (str): The Page ID of the page we want to delete.
+        Outputs:
+            True if successful - else False
+        """
+        ret = True
+        if(PID in self.pageDirectory):
+            index = self.pageDirectory[PID] #index: (isFull, inMem, columnIdx, pageIdx)
+            if(index[1]): #if the page is in memory
+                if(index[0]): #if page is full
+                    self.colMemFull[index[2]][index[3]].delete() #remove any saved files
+                    self.colMemFull[index[2]].pop(index[3]) #remove from memory
+                    del self.pageDirectory[PID] #remove from page directory
+                else: #page is partially full
+                    self.colMemPartial[index[2]][index[3]].delete() #remove any saved files
+                    self.colMemPartial[index[2]].pop(index[3]) #remove from memory
+                    del self.pageDirectory[PID] #remove from page directory
+            else: #The page is on disk so just delete the files
+                if(index[0]): #if page is full
+                    self.colDiskFull[index[2]].pop(index[3]) #remove from memory
+                    remove(f"{self.path}{PID}-full.offsets")
+                    remove(f"{self.path}{PID}-full.bin")
+                    del self.pageDirectory[PID] #remove from page directory
+                else: #page is partially full
+                    self.colDiskFull[index[2]].pop(index[3]) #remove from memory
+                    remove(f"{self.path}{PID}-partial.offsets")
+                    remove(f"{self.path}{PID}-partial.bin")
+        else:
+            ret = False
+        return ret
+
+    def savePage(self, PID):
         """
         Description: This method writes the page to disk and removes it from the active bufferpool.
         Inputs:
             pageID(str): The ID of the page we want to write to disk.
         """
-        if(pid in self.pageDirectory):
-            idx = self.pageDirectory[pid] #(isFull, colIdx, index in BP)
-            if(idx[0]): #full page
-                page = self.colMemFull[idx[1]].pop(idx[2])
-                page.save(self.path, "-full")
-                index = (True, idx[1], len(self.colDiskFull))
-                self.colDiskFull[idx[1]].append(page.pageID)
-                self.pageDirectory[pid] = index
+        ret = True
+        if(PID in self.pageDirectory): #if the page exists
+            index = self.pageDirectory[PID] #index: (isFull, inMem, columnIdx, pageIdx)
+            if(index[1]): #the page is in memory, then save it else it's in disk, no save necessary.
+                if(index[0]): #if the page is full
+                    page = self.colMemFull[index[2]].pop(index[3]) #pop full page from memory
+                    page.save(self.path, "-full") #Save the page
+                    index = (1, 0, index[2], len(self.colDiskFull))
+                    self.colDiskFull[index[2]].append(page.pageID)
+                    self.pageDirectory[PID] = index
+                else:
+                    page = self.colMemPartial[index[2]].pop(index[3])
+                    page.save(self.path, "-partial")
+                    index = (1, 0, index[2], len(self.colDiskFull))
+                    self.colDiskPartial[index[2]].append(page.pageID)
+                    self.pageDirectory[PID] = index
             else:
-                page = self.colMemPartial[idx[1]].pop(idx[2])
-                page.save(self.path, "-partial")
-                index = (False, idx[1], len(self.colDiskPartial))
-                self.colDiskPartial[idx[1]].append(page.pageID)
-                self.pageDirectory[pid] = index
-            return True
-        return False
+                ret = False
+        return ret
+    
+    def loadPage(self, PID):
+        ret = True
+        if(PID in self.pageDirectory): #if the page exists
+            index = self.pageDirectory[PID] #index: (isFull, inMem, columnIdx, pageIdx)
+            if(index[1]): #the page is in disk then load it else it's in memory, no load necessary.
+                if(index[0]): #if the page is full
+                    self.colMemFull[index[2]].pop(index[3]) #pop full page PID from disk
+                    
+                    
+                    index = (1, 0, index[2], len(self.colDiskFull))
+                    self.colDiskFull[index[2]].append(page.pageID)
+                    self.pageDirectory[PID] = index
+                else:
+                    page = self.colMemPartial[index[2]].pop(index[3])
+                    page.save(self.path, "-partial")
+                    index = (1, 0, index[2], len(self.colDiskFull))
+                    self.colDiskPartial[index[2]].append(page.pageID)
+                    self.pageDirectory[PID] = index
+            else:
+                ret = False
+        return ret
+    
+
 
     def evict(self):
         """

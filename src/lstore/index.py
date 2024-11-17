@@ -31,11 +31,19 @@ Indexes:
                  primary keys of records with that value in this column. It is also version specific.
                  The VK index is a level 2 index sine the BP index points to an entry in this index.
     Format:
-    {
-        <Value>: {
-                    <Version> : [<Primary Key>, ...],
-                 },
-    }
+    [
+        {
+            <Value>: {
+                        <Version> : [<Primary Key>, ...],
+                    },
+        },
+    ,
+    ...
+    ]
+    
+
+    k1 -> to delete
+    PK[k1]->record(loc1, loc2)
 -----------------------------------------------------------------------------------------------------------------------                       
 """
 
@@ -55,10 +63,31 @@ class Index:
             The index is empty initially and only gets populated as things get created or loaded.
         """
         self.pkl_index = {}
-        self.vk_index = {}
+        self.vk_index = [{}] * numColumns 
+    
+    def __repr__(self):
+        """
+        Example:
+        index = Index()
+        ...
+        outfile.write("[Index]")
+        outfile.write(str(index)) -> "<pk>:(<PID>#<idx>)|(<PID>#<idx>)|...,<pk>:...\n
+                                    <value>:<version>#<key>#<key>#...#<key>|<version>...,<value>...@<value>\n"
+                                    
 
-        #Build the BP index
-        self.bp_index = [[[], [], [], []] for x in range(numColumns)]
+
+        infile.readline() PKL
+        infile.readline() 
+
+        index.load(PKL, VKL)
+
+        """
+        #Todo
+        pass
+
+    def load(self, PKL, VKL):
+        pass
+
     
     
 
