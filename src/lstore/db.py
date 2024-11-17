@@ -96,7 +96,7 @@ class Database():
     """
     def create_table(self, name, num_columns, key_index):
 
-        bufferPool = BufferPool(num_columns, index)
+        bufferPool = BufferPool(num_columns, self.path)
         index = Index(num_columns)
         table = Table(name, num_columns, key_index, bufferPool, index)
         self.tables[name] = table #Store the table
