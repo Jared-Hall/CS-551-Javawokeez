@@ -211,6 +211,12 @@ class Table:
  
 
     def delete(self, primary_key):
+        for loc in self.key_rid[primary_key]: 
+            self.delete_version(loc) 
+
+        del self.key_rid[primary_key] 
+        return 
+        
         base_record = self.bp_directory[self.key_rid[primary_key][0]]
         
         if base_record.rid in self.tp_directory: 
@@ -316,6 +322,12 @@ class Table:
         
         # #self.tp_directory[base_record.rid] += tail_record
         # self.key_rid[primary_key].append(tail_record.rid)
+
+    def delete_version(self, location): 
+        #LOCATION = (PID, OFFSET)
+        #OPEN PAGE WITH PID 
+        #DELETE DATA AT OFFSET 
+        return 
        
     
     
@@ -333,6 +345,12 @@ class Table:
         
         
         """
+        for key in self.key_rid: 
+            deletedUpdates = self.key_rid[key][:-1] 
+            newLocs = [self.key_rid[key][-1]] 
+            self.key_rid[key] =  newLocs 
+            for loc in deletedUpdates:
+                self.delete_version(loc)
         pass
     
  
