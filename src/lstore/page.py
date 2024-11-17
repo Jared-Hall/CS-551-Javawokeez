@@ -49,14 +49,11 @@ class Page:
                          The rate of use is calculated by taking the number of times a page has been read from or written to
                          in a fixed cycle and dividing this by a fixed time window.  
         """
-        self.numEntries = 0
-        self.dTail = 0
-        self.rTail = 0
-        self.capacity = 0
-        self.entrySize = size
-        self.data = None
         self.LFU = 0
         self.pin = -1
+
+        self.capacity = 0
+        self.data = None
         self.availableOffsets = None
         
         if(type(pid) != type("str") or "P-" not in pid):
@@ -93,7 +90,7 @@ class Page:
         """
         status = True
         #Step-01: Write the page index
-        with open("storage/"+self.pageID+".offsets", "wb") as offsetFile:
+        with open("storage/"+self.pageID+".offsets", "w") as offsetFile:
             offsetFile.write(','.join(self.availableOffsets))
 
         with open("storage/"+self.pageID+".bin", "wb") as dataFile:
@@ -103,90 +100,43 @@ class Page:
     def load(self):
         """
         Description: This method loads the page (data and index) from disk.
-        Data structures:
-        pageIndex:
-        {
-            <value>: {
-                        <version> : [<key>, ...],
-                        ...
-                    },
-                    ...
-        }
-
-        removeIndex: 
-        [idx, idx, idx, idx, ...]
-
-        Format (PID.index):
-        Page Index:
-        <value>:<version1>#<key1>#<key2>#<key3>#...#<keyn>|<version2>#...#,<value2>:...
-        Remove Index:
-        idx,idx,idx ,... <- this is the remove index
-        
-        Format(PID.bin): 
-        0xBBBBBBBB, 0xBBBBBBB...
         """
         status = True
         with open("storage/"+self.pid+".bin", "rb") as dataFile:
             self.data = bytearray(dataFile.read())
-        
+        with open("storage/"+self.pageID+".offsets", "r") as offsetFile:
+            self.availableOffsets = [int(x) for x in offsetFile.read().split(',')]
         return status
-
-    def _encode(self, data):
-        if(type(data) == str):
-            return data.encode('utf-8')
-        else:
-            return str(data).encode('utf-8')
-    
-    def _decode(self, data):
-        return data.decode('utf-8')
-
-    def _insertData(self, data):
-        """
-        Description: This method inserts the data and returns the index
-        Inputs:
-            data (bytes): This variable contains a bytes encoded string.  
-        """
-        rawData = self._encode(str(value))
-        index = -1
-        if(len(self.availableOffsets) > 0):
-            index = self.rIndex.pop()
-        else:
-            index = self.tail
-            self.tail += 8
-        self.data[index:(index+8)] = rawData
-
 
     def write(self, value):
         """
         Description: A simple write method. Will append new data to array.
         Inputs:
-            key (any): The primary key for the data. Will be encoded as a string.
             value (any): The data value to be stored. Will be encoded as a string.
-            version (int): The absolute version of the data. 0 means it belongs to a BR, all else is TR data
         Outputs:
             index (int): The integer index that the data was stored at.
         """
-        rawData = self._encode(str(value))
-        index = -1
-        if(len(self.availableOffsets) > 0):
-            index = self.availableOffsets.pop()
-        else:
-            index = self.tail
-            self.tail += 8
-        self.data[index:(index+8)] = rawData
+        index = self.availableOffsets.pop()
+        self.data[index : (index + 8)] = str(value).encode('utf-8')
         return index
         
-
     def read(self, index):
         """"
         Description: A simple read method. Returns data by index from the page if the key exists.
         Inputs:
             index (int): the index of the value you wanna read.
         """
-        return self.data[index:(index+8)]
+        return (self.data[index:(index+8)]).decode('utf-8')
+
+    def remove(self, index):
+        """
+        Description: Removes data in the page from the given index.
+        Inputs:
+            index (int): the index of the value you wanna delete.
+        """
+        self.availableOffsets.append(index)
+
         
-
-
 if(__name__== "__main__"):
     p1 = Page('P-1')
     print("Page created (capacity):", p1.capacity)
