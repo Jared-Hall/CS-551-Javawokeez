@@ -15,13 +15,55 @@ class Database():
 
     def __init__(self):
         self.tables = {} #Store name and tables as key:value
+        self.path = None 
         pass
 
     # Not required for milestone1
     def open(self, path):
+        """
+        path is a string reference to a folder name 
+        the path stores all the pages for that database 
+        we need some object to store data about the database on disk 
+        data included: tables
+        table data: colDisk needs to be saved so we know which pages in disk are partial and full when reloaded 
+        table data: key_rid locations map needs to be loaded 
+        
+        
+        """
+
+        self.path = path
         pass
 
     def close(self):
+        """
+        db can only be closed when all pages in memory are unpinned 
+        all data is written to disk and colDisk indexes are updated to contain all pages
+        save the colDisk indexes to disk to be used on reload 
+        save the key_rid index to disk 
+        
+        """
+        for name, table in self.tables:
+            buffer = table.bufferpool
+            with open(str(self.path)+"/"+str(name)+"-full.bin", "wb") as file:
+                file.write((table.key).to_bytes(4, 'big'))
+                file.write((table.num_columns).to_bytes(4, 'big'))
+                for col in buffer.colDiskFull:
+                    file.write(len(col).to_bytes(4, 'big')) 
+                    for PID in col: 
+                        file.write(len(PID).to_bytes(4, 'big'))
+                        file.write(PID.encode("utf-8"))
+
+            with open(str(self.path)+"/"+str(name)+"-"+str(table.num_columns)+"-"+str(table.key)+"-partial.bin", "wb") as file:
+                file.write((table.key).to_bytes(4, 'big'))
+                file.write((table.num_columns).to_bytes(4, 'big'))
+                for col in buffer.colDiskPartial:
+                    file.write(len(col).to_bytes(4, 'big')) 
+                    for PID in col: 
+                        file.write(len(PID).to_bytes(4, 'big'))
+                        file.write(PID.encode("utf-8"))
+
+                
+        self.path = None 
         pass
 
     """
@@ -53,6 +95,38 @@ class Database():
     # Returns table with the passed name
     """
     def get_table(self, name):
+        diskFull = []
+        diskPartial = []
+        with open(str(self.path)+"/"+name+"-full.bin", "rb") as file:
+            key = int.from_bytes(file.read(4), 'big') 
+            numCols = int.from_bytes(file.read(4), 'big') 
+            for i in range(numCols):
+                col = []
+                numPages = int.from_bytes(file.read(4), 'big') 
+                for j in range(numPages): 
+                    PID_len = int.from_bytes(file.read(4), 'big') 
+                    data = file.read(PID_len).decode('utf-8')
+                    col.append(data)
+                diskFull.append(col)
+
+        with open(str(self.path)+"/"+name+"-full.bin", "rb") as file:
+            key = int.from_bytes(file.read(4), 'big') 
+            numCols = int.from_bytes(file.read(4), 'big') 
+            for i in range(numCols):
+                col = []
+                numPages = int.from_bytes(file.read(4), 'big') 
+                for j in range(numPages): 
+                    PID_len = int.from_bytes(file.read(4), 'big') 
+                    data = file.read(PID_len).decode('utf-8')
+                    col.append(data)
+                diskPartial.append(col) 
+
+        table = self.create_table(name, numCols, key)
+        table.bufferpool.colDiskFull = diskFull 
+        table.bufferpool.colDiskPartial = diskPartial
+        self.tables[name] = table
+        return table 
+
         if name in self.tables: 
             return self.tables[name]
         else:
