@@ -204,7 +204,8 @@ class BufferPool:
         Inputs: 
             N/A
         Outputs:
-            Returns a list of pageIDs for every page in memory
+            Returns a list of tuples. Format: [(ref, LFU, full, columnIdx, indx), ...]
+        
         """
         # TODO
         pass   
@@ -292,9 +293,9 @@ class BufferPool:
             index = self.pageDirectory[PID] #index: (isFull, inMem, columnIdx, pageIdx)
             if(index[1]): #the page is in disk then load it else it's in memory, no load necessary.
                 if(index[0]): #if the page is full
-                    self.colMemFull[index[2]].pop(index[3]) #pop full page PID from disk
+                    self.colDiskFull[index[2]].pop(index[3]) #pop full page PID from disk
                     
-                    
+
                     index = (1, 0, index[2], len(self.colDiskFull))
                     self.colDiskFull[index[2]].append(page.pageID)
                     self.pageDirectory[PID] = index

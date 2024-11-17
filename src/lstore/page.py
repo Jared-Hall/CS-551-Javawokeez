@@ -52,6 +52,8 @@ class Page:
         """
         self.LFU = 0
         self.pin = -1
+        self.isDirty = True
+
         self.startTime = time.time()
         self.cycle = 30
 
@@ -73,6 +75,12 @@ class Page:
         else:
             err = "ERROR: Parameter <capacity> must be a non-zero integer."
             raise TypeError(err)
+    
+    def setDirty(self):
+        self.isDirty = True
+    
+    def setClean(self):
+        self.isDirty = False
 
     def has_capacity(self):
         """
@@ -149,5 +157,6 @@ class Page:
             index (int): the index of the value you wanna delete.
         """
         endTime = time.time()
-        self.LFU = self.LFU/((self.startTime - endTime) % self.cycle)
-        return self.LFU
+        LFU = self.LFU/((self.startTime - endTime) % self.cycle)
+        self.LFU = 0
+        return LFU
