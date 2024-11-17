@@ -243,4 +243,47 @@ class BufferPool:
         return False
 
     def evict(self):
-        pass  
+        """
+        Evicts 40% of the pages in memory using the LFU (Least Frequently Used) strategy.
+        Moves evicted pages to disk and updates metadata accordingly.
+        """
+        # Collect all pages and their LFU values
+        page_list = []
+        for col_idx, pages in enumerate(self.colMemPartial):
+            for page in pages:
+                page_list.append((page, col_idx, False))  # False for partial column
+        for col_idx, pages in enumerate(self.colMemFull):
+            for page in pages:
+                page_list.append((page, col_idx, True))  # True for full column
+
+        # Calculate the number of pages to evict
+        num_pages = len(page_list)
+        evict_count = max(1, int(num_pages * 0.4))  # Evict at least one page
+
+        # Sort pages by their LFU value (ascending)
+        page_list.sort(key=lambda x: x[0].updateRate())
+
+        # Evict the required number of pages
+        for i in range(evict_count):
+            page, col_idx, is_full = page_list[i]
+            pid = page.pageID
+
+            # Save page to disk if it's dirty
+            if self.dirtyPageList[pid]:
+                self.savePage(pid)
+                self.dirtyPageList[pid] = None
+
+            # Remove from memory and update metadata
+            if is_full:
+                # Evicting from full memory pool
+                self.colMemFull[col_idx].remove(page)
+                self.colDiskFull[col_idx].append(pid)
+                self.pageDirectory[pid] = (True, col_idx, len(self.colDiskFull[col_idx]) - 1)
+            else:
+                # Evicting from partial memory pool
+                self.colMemPartial[col_idx].remove(page)
+                self.colDiskPartial[col_idx].append(pid)
+                self.pageDirectory[pid] = (False, col_idx, len(self.colDiskPartial[col_idx]) - 1)
+
+        return True  # Eviction completed
+  
