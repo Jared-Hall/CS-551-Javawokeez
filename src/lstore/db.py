@@ -204,16 +204,20 @@ class BufferPool:
     def loadPage(self, pid):
         if(pid in self.pageDirectory):
             idx = self.pageDirectory[pid] #(isFull, colIdx, index in BP)
-        page = Page(pid)
-        if(isFull):
-            status = page.load(self.path, "-full")
-            self.colMemFull[column].append(page)
-        else:
-            status = page.load(self.path, "-partial")
-            self.colMemPartial[column].append(page)
-        if(status):
-            raise FileExistsError("Page: "+pageID+"Does not exist.")
-        return page
+            if(idx[0]): #full page
+                page = self.colMemFull[idx[1]].pop(idx[2])
+                page.save(self.path, "-full")
+                index = (True, idx[1], len(self.colDiskFull))
+                self.colDiskFull[idx[1]].append(page.pageID)
+                self.pageDirectory[pid] = index
+            else:
+                page = self.colMemPartial[idx[1]].pop(idx[2])
+                page.save(self.path, "-partial")
+                index = (False, idx[1], len(self.colDiskPartial))
+                self.colDiskPartial[idx[1]].append(page.pageID)
+                self.pageDirectory[pid] = index
+            return page
+        return False
     
     def savePage(self, pid):
         """
@@ -239,5 +243,4 @@ class BufferPool:
         return False
 
     def evict(self):
-        # TODO: evict a page from pageDirectory        
-        pass       
+        pass  

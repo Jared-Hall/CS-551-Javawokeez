@@ -1,3 +1,4 @@
+import time
 """
 Documentation for the page class.
 Author: Jared Hall jhall10@uoregon.edu
@@ -51,6 +52,8 @@ class Page:
         """
         self.LFU = 0
         self.pin = -1
+        self.startTime = time.time()
+        self.cycle = 30
 
         self.capacity = 0
         self.data = None
@@ -116,6 +119,7 @@ class Page:
         Outputs:
             index (int): The integer index that the data was stored at.
         """
+        self.LFU += 1
         index = self.availableOffsets.pop()
         self.data[index : (index + 8)] = str(value).encode('utf-8')
         return index
@@ -126,6 +130,7 @@ class Page:
         Inputs:
             index (int): the index of the value you wanna read.
         """
+        self.LFU += 1
         return (self.data[index:(index+8)]).decode('utf-8')
 
     def remove(self, index):
@@ -134,4 +139,15 @@ class Page:
         Inputs:
             index (int): the index of the value you wanna delete.
         """
+        self.LFU += 1
         self.availableOffsets.append(index)
+    
+    def calculateLFU(self):
+        """
+        Description: Removes data in the page from the given index.
+        Inputs:
+            index (int): the index of the value you wanna delete.
+        """
+        endTime = time.time()
+        self.LFU = self.LFU/((self.startTime - endTime) % self.cycle)
+        return self.LFU

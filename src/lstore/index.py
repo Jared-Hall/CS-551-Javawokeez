@@ -24,28 +24,7 @@ Indexes:
         <primary key> : [((<PID>, <idx>), (<PID>, <idx>), ...), ... ]
     }
 -----------------------------------------------------------------------------------------------------------------------    Index (Bufferpool):
-    Index (BP): Column -> Pages 
-    Description: The Buffer Pool (BP) index holds references to every page in the DB, both in memory and on disc.
-                 The BP index is a 2-stage index: 
-                 1st Stage: [Column1_Index, Column2_index, ...]
-                 2nd Stage: column-specific index
-                 Each column index has the following format:
-                 [
-                    [<PageRef>, ...], # In-memory (Empty/Partially filled pages)
-                    [<PageRef>, ...], # In-memory (Full pages)
-                    [<PID>, ...], # On disk (Empty/Partially filled pages)
-                    [<PID>, ...], # On disk (Full pages)
-                 ]
-    Format:
-    [
-        [
-            [<PageRef>, ...],
-            [<PageRef>, ...],
-            [<PID>, ...],
-            [<PID>, ...]
-        ], 
-        ...
-    ]
+
 -----------------------------------------------------------------------------------------------------------------------                       
     Index (VK): Values -> Keys
     Description: The Value-Key (VK) index is a level 2 column-wise index that maps values in a column to the
