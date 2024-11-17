@@ -251,21 +251,23 @@ class BufferPool:
         page_list = []
         for col_idx, pages in enumerate(self.colMemPartial):
             for page in pages:
-                page_list.append((page, col_idx, False))  # False for partial column
+                lfu_score = self.calculateLFU(page)
+                page_list.append((page, col_idx, False, lfu_score))  # False for partial column
         for col_idx, pages in enumerate(self.colMemFull):
             for page in pages:
-                page_list.append((page, col_idx, True))  # True for full column
+                lfu_score = self.calculateLFU(page)
+                page_list.append((page, col_idx, True, lfu_score))  # True for full column
 
         # Calculate the number of pages to evict
         num_pages = len(page_list)
         evict_count = max(1, int(num_pages * 0.4))  # Evict at least one page
 
         # Sort pages by their LFU value (ascending)
-        page_list.sort(key=lambda x: x[0].updateRate())
+        page_list.sort(key=lambda x: x[3])  # Sort by LFU score
 
         # Evict the required number of pages
         for i in range(evict_count):
-            page, col_idx, is_full = page_list[i]
+            page, col_idx, is_full, _ = page_list[i]
             pid = page.pageID
 
             # Save page to disk if it's dirty
@@ -286,4 +288,3 @@ class BufferPool:
                 self.pageDirectory[pid] = (False, col_idx, len(self.colDiskPartial[col_idx]) - 1)
 
         return True  # Eviction completed
-  
