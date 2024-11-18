@@ -67,26 +67,105 @@ class Index:
     
     def __repr__(self):
         """
-        Example:
-        index = Index()
-        ...
-        outfile.write("[Index]")
-        outfile.write(str(index)) -> "<pk>:(<PID>#<idx>)|(<PID>#<idx>)|...,<pk>:...\n
-                                    <value>:<version>#<key>#<key>#...#<key>|<version>...,<value>...@<value>\n"
-                                    
+        Format:
+        PKL
+        {
+            <primary key> : [((<PID>, <idx>), (<PID>, <idx>), ...), ... ]
+        }
 
+        pkl Rep:
+        pk:PID-idx#PID-idx#PID-idx|PID-idx#PID-idx#PID-idx,pk:...\n
 
-        infile.readline() PKL
-        infile.readline() 
-
-        index.load(PKL, VKL)
+        VK:
+         <value>:<version>#<key>#<key>#...#<key>|<version>...,<value>...@<value>.....\n"
 
         """
-        #Todo
-        pass
+        #Step-01: Build the PKL string representation
+        pkl = []
+        for key in self.pkl_index: #key -> [rec, rec, rec] | rec -> (c1, c2, ...) | c -> (PID, idx)
+            records = [] #[rec, rec, red, ...]
+            for record in self.pkl_index[key]:
+                record = '#'.join([f"{page[0]}-{page[1]}" for page in record])
+                records.append(record)
+            pkl.append(f"{key}:{'|'.join(records)}")
+        pkl = ','.join(pkl)
 
-    def load(self, PKL, VKL):
-        pass
+        #Step-02: Build vkl
+        vk = []
+        for columnWiseIndex in self.vk_index:
+            values = []
+            for value in columnWiseIndex:
+                versions = []
+                for version in columnWiseIndex[value]:
+                    keys = '#'.join(columnWiseIndex[value][version])
+                    versions.append(f"{version}#{keys}")
+                values.append(f"{value}:{'|'.join(versions)}")
+            vk.append(f"{','.join(values)}")
+        vk = '@'.join(vk)
+
+        return f"{pkl}\n{vk}\n"
+    
+    def load(self, pklRep, vkRep):
+        """
+        Format:
+        pkl Rep:
+        pk:PID-idx#PID-idx#PID-idx|PID-idx#PID-idx#PID-idx,pk:...\n
+
+        VK:
+         <value>:<version>#<key>#<key>#...#<key>|<version>...,<value>...@<value>.....\n"
+        """
+        
+
+        #Step-01: Build pkl index from string rep
+        pklRep = pklRep[:-1].split(',') #  [pk:PID-idx#PID-idx#PID-idx|PID-idx#PID-idx#PID-idx, pk:...]
+        for pkRep in pklRep: # pkRep -> pk:PID-idx#PID-idx#PID-idx|PID-idx#PID-idx#PID-idx
+            pkRep = pkRep.split(':') #pkRep -> [pk, PID-idx#PID-idx#PID-idx|PID-idx#PID-idx#PID-idx]
+            key = pkRep[0]
+            self.pkl_index[key] = []
+            records = pkRep[1].split('|') # [PID-idx#PID-idx#PID-idx, PID-idx#PID-idx#PID-idx, ...]
+            for recRep in records: #record -> PID-idx#PID-idx#PID-idx
+                recRep = recRep.split('#') #[PID-idx, PID-idx, PID-idx]
+                record = []
+                for page in recRep:
+                    page = page.split('-') #[PID, idx]
+                    page = tuple(page[0], int(page[1]))
+                    record.append(page)
+                record = tuple(record)
+                self.pkl_index[key].append(record)
+        
+        #Step-02: Build vk from string rep
+        vkRep = vkRep[:-1].split('@') #[<value>:<version>#<key>#<key>#...#<key>|<version>...,<value>..., ...]
+        self.vk_index = []
+        for colRep in vkRep: #colRep -> <value>:<version>#<key>#<key>#...#<key>|<version>...,<value>...
+            column = {}
+            for valRep in colRep.split(','): #valRep -> [<value>:<version>#<key>#<key>#...#<key>|<version>..., ...]
+                valRep = valRep.split(':') #[<value>, <version>#<key>#<key>#...#<key>|<version>...]
+                value = valRep[0]
+                column[value] = {}
+                for verRep in valRep[1].split('|'): #[<version>#<key>#<key>#...#<key>, <version>...]
+                    verRep = verRep.split('#') # [<version>, <key>, <key>, ..., <key>]
+                    column[int(verRep[0])] = verRep[1:]
+            self.vk_index.append(column)
+        
+    def getLoc(self, primaryKey, recordIdx):
+        return self.pkl_index[primaryKey][recordIdx]
+    
+    def setLoc(self, key, recordIdx, record):
+        self.pkl_index[key].insert(record, recordIdx)
+
+    def getIndexByValue(self, colIndx, value, version):
+        if(value in self.vk_index[colIndx]):
+            if(version in self.vk_index[colIndx][value]):
+                return self.vk_index[colIndx][value][version]
+        return False
+
+            
+
+
+            
+
+                
+            
 
     
     
