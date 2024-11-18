@@ -7,7 +7,6 @@ Description:
 """
 from lstore.index import Index
 from lstore.page import Page
-from lstore.db import BufferPool
 
 INDIRECTION_COLUMN = 0
 RID_COLUMN = 1
@@ -17,11 +16,11 @@ SCHEMA_ENCODING_COLUMN = 3
 
 class Record:
 
-    def __init__(self, rid, key, columns, bufferpool, indexCols):
+    def __init__(self, rid, key, columns, bufferPool, indexCols):
         self.rid = rid
         self.key = key
 
-        self.bufferPool = bufferpool
+        self.bufferPool = bufferPool
         self.indexCols = indexCols
 
         self.columns = [0] * len(columns)
@@ -61,27 +60,9 @@ class Table:
         self.num_columns = num_columns
         self.path = f"{path}/{name}/"
         self.page_directory = {}
-        self.bufferPool = BufferPool(num_columns, self.path)
         self.index = Index(num_columns)
-
-        # self.base_pages = [[Page()] for i in range(num_columns)] #List of List [[Base Pages for column 1], [Base Pages for column 2], [Base Pages for column 3]]
-        # self.tail_pages = [[Page()] for i in range(num_columns)] #List of List [Tail Pages for column 1], [Tail Pages for column 2], [Tail Pages for column 3]]
-        
-
-        # HJV changes
-        self.base_pages = [[bufferPool.createNewPageAndGetIdForColumn(i)] for i in range(num_columns)] # List of List of page ids [[Base pageID for column 1], [Base pageID for column 2], [Base pageID for column 3]]
-        self.tail_pages = [[bufferPool.createNewPageAndGetIdForColumn(i)] for i in range(num_columns)]# List of List of page ids [[Tail pageID for column 1], [Tail pageID for column 2], [Tail pageID for column 3]]
-
-        
-        self.bp_directory = dict() # Maps RID -> Base Record 
-        self.tp_directory = dict() # Maps BaseRecord.rid -> [TailRecord, TailRecord, Tailrecord]
-        
-        
-        self.bp_index = [0] * num_columns #List of stored index for base pages. [0, 1, 2] access self.base_pages[i][self.bp_index[i]] 
-        self.tp_index = [0] * num_columns #List of stored index for tail pages. [0, 1, 2] access self.tail_pages[i][self.bp_index[i]] 
-        self.key_rid = dict() #Maps key->rid can use to find all rids with that key 
-
-        pass
+        self.bufferPool = bufferPool
+        self.bufferPool.path = self.path
 
     def insert(self, *columns):
         """
@@ -101,8 +82,8 @@ class Table:
                     col-mem-partial[i].remove(page)             #REMOVE IT FROM THE PARTIAL PAGES IN MEMORY 
 
             else:                                                   #IF THERE ARE NO PARTIAL PAGES IN MEMORY 
-                if not bufferpool.hasCapacityForColumn(i):          #IF BUFFERPOOL IS FULL (OF FULL PAGES)
-                    bufferpool.evict()                              #EVICT A PAGE BASED ON POLICY NOW THERE IS AN EMPTY SPACE IN MEMORY  
+                if not bufferPool.hasCapacityForColumn(i):          #IF bufferPool IS FULL (OF FULL PAGES)
+                    bufferPool.evict()                              #EVICT A PAGE BASED ON POLICY NOW THERE IS AN EMPTY SPACE IN MEMORY  
                     if col-disk-partial[i]:                         #IF THERE ARE PARTIAL PAGES ON THE DISK 
                         page = col-disk-partial[i][0]               #RETRIEVE THE PAGE FROM DISK TO MEMORY 
                         page.write(value)                           #WRITE VALUE TO THE PAGE 
@@ -114,108 +95,50 @@ class Table:
                         
                     else:                                                   #IF THERE ARE NO PARTIAL PAGES ON DISK 
                         pid = createNewPageAndGetId()                       #CREATE A NEW PAGE AND GET PAGE ID 
-                        bufferpool.pageDir[pid].write(value)                #WRITE VALUE TO THE PAGE 
-                        col-mem-partial[i].append(bufferpool.pageDir[pid])  #ADD THE PAGE TO PARTIAL PAGES IN MEMORY 
+                        bufferPool.pageDir[pid].write(value)                #WRITE VALUE TO THE PAGE 
+                        col-mem-partial[i].append(bufferPool.pageDir[pid])  #ADD THE PAGE TO PARTIAL PAGES IN MEMORY 
                         record_location[i] = (pid, offset)                  #SAVE THE LOCATION FOR THAT COLUMN 
 
-                else:                                                       #IF THE BUFFERPOOL HAS EMPTY SPACE (NO PARTIALS AND SOME FULLS)
+                else:                                                       #IF THE bufferPool HAS EMPTY SPACE (NO PARTIALS AND SOME FULLS)
                     pid = createNewPageAndGetId()                           #CREATE A NEW PAGE AND GET PAGE ID
-                    bufferpool.pageDir[pid].write(value)                    #WRITE VALUE TO THE PAGE 
-                    col-mem-partial[i].append(bufferpool.pageDir[pid])      #ADD PAGE TO PARTIAL PAGES IN MEMORY 
+                    bufferPool.pageDir[pid].write(value)                    #WRITE VALUE TO THE PAGE 
+                    col-mem-partial[i].append(bufferPool.pageDir[pid])      #ADD PAGE TO PARTIAL PAGES IN MEMORY 
                     record_location[i] = (pid, offset)                      #SAVE THE LOCATION FOR THIS COLUMN 
 
         key_location[columns[0][0]] = [record_location]                     #INDEX THE LOCATION OF THE BASE RECORD EX: [((P-2, 0), (P-3, 3), (P-4, 2))]
         """
 
-        record_location = ()
+        record_location = [[]]*len(columns[0])
         for i, value in enumerate(columns[0]):                                      #LOOP THROUGH COLUMNS                            
-            if len(self.bufferpool.colMemPartial[i]) > 0:
+            if len(self.bufferPool.colMemPartial[i]) > 0:
                 page = self.bufferPool.colMemPartial[i][0]                         #RETRIEVE THE PAGE 
-                page.write(value)                                                  #WRITE VALUE TO THE PAGE 
-                record_location[i] = (page.pageID, page.numEntries - 1)            #SAVE THE LOCATION FOR THAT COLUMN 
+                index = page.write(value)                                                  #WRITE VALUE TO THE PAGE 
+                record_location[i] = (page.pageID, index)                #SAVE THE LOCATION FOR THAT COLUMN 
                 if not page.hasCapacity():                                         #IF THE PAGE IS FULL AFTER INSERT 
                     self.bufferPool.colMemFull[i].append(page)                     #MOVE IT TO FULL PAGES IN MEMORY 
                     self.bufferPool.colMemPartial[i].remove(page)                  #REMOVE IT FROM THE PARTIAL PAGES IN MEMORY 
-            else:
-                if not self.bufferpool.hasCapacityForColumn(i):
-                    self.bufferpool.evict()
-                    if len(self.bufferPool.colDiskPartial[i]) > 0:
-                        page = self.bufferPool.getPageFromDisk(self.bufferPool.colDiskPartial[i])
-                        page.write(value)
-                        record_location[i] = (page.pageID, page.numEntries - 1)
-                        if not page.hasCapacity():                  
-                            self.bufferPool.colMemFull[i].append(page)            
-                        else:                                       
-                            self.bufferPool.colMemPartial[i].append(page)  
-
-                    else:                                                   
-                        pid = self.bufferPool.createNewPageAndGetIdForColumn(i)
-                        page = self.bufferPool.colMemPartial[i][-1]
-                        page.write(value)       # createNewPageAndGetIdForColumn create a page and appends it to column[i]                        
-                        record_location[i] = (pid, page.numEntries - 1)     
+            else: #no partials in memory
+                if(len(self.bufferPool.colDiskPartial[i]) > 0):
+                    page = self.bufferPool.getPage(self.bufferPool.colDiskPartial[0].pageID)
+                    index = page.write(value)
+                    record_location[i] = (page.pageID, index)                #SAVE THE LOCATION FOR THAT COLUMN 
+                    if not page.hasCapacity():                                         #IF THE PAGE IS FULL AFTER INSERT 
+                        self.bufferPool.colMemFull[i].append(page)                     #MOVE IT TO FULL PAGES IN MEMORY 
+                        self.bufferPool.colMemPartial[i].remove(page)
                 else:
-                    pid = self.bufferPool.createNewPageAndGetIdForColumn(i)
-                    page = self.bufferPool.colMemPartial[i][-1]
-                    page.write(value)       # createNewPageAndGetIdForColumn create a page and appends it to column[i]                        
-                    record_location[i] = (pid, page.numEntries - 1)     
-        # rid = ()
-
-        # col_page_ids = [""] * len(columns[0])
-        # indexCols = [-1] * len(columns[0])
-        # for i, value in enumerate(columns[0]): #Loop through the inserted columns 
-            
-        #     value = str(value)
-            
-        #     # if self.base_pages[i][self.bp_index[i]].has_capacity(len(value)): #For each column check if the current corresponding base page has empty room 
-        #     #     self.base_pages[i][self.bp_index[i]].write(bytearray(value, "utf-8")) #Since there is room, write the column value to that base page 
-        #     #     rid = rid + ((self.bp_index[i],  self.base_pages[i][self.bp_index[i]].numEntries - 1),) #Save the RID tuple for this column as (current bp_index, page.num_entries-1)
-        #     #     #Subtract 1 from numEntries because the 10th element will be stored at position 9 in the page.rIndex 
-        #     # else: 
-        #     #     #If the base page is full 
-        #     #     self.base_pages[i].append(Page()) #Create a new base page in that columns bp list 
-        #     #     self.bp_index[i] += 1 #Increment the index of the current base page 
-        #     #     self.base_pages[i][self.bp_index[i]].write(bytearray(value, "utf-8")) #Write the value to the new base page using the incremented index 
-        #     #     rid = rid + ((self.bp_index[i],  self.base_pages[i][self.bp_index[i]].numEntries - 1),) #Save the RID tuple for this column as (incremented bp_index, page.num_entries-1)
-        # # record = Record(rid, columns[0][0], list(columns[0])) #Create a record using the new rid, key(first column) and the columns 
-        # # #print("TEST", columns[0])
-        # # self.bp_directory[rid] = record #Map the RID to the physical record 
-        
-     
-        # # self.key_rid[columns[0][0]] = [rid] #Map the key to the RID. Key: [rid, rid, rid]
-        # # #Now we can do Key->RID->Record Useful for search 
-
-        #     base_page = self.bufferPool.getPageById(self.base_pages[i][self.bp_index[i]])
-
-        #     if base_page.has_capacity(len(value)): #For each column check if the current corresponding base page has empty room 
-        #         base_page.write(bytearray(value, "utf-8")) #Since there is room, write the column value to that base page 
-        #         rid = rid + ((self.bp_index[i],  base_page.numEntries - 1),) #Save the RID tuple for this column as (current bp_index, page.num_entries-1)                
-        #         indexCols[i] = base_page.numEntries - 1
-        #         #Subtract 1 from numEntries because the 10th element will be stored at position 9 in the page.rIndex 
-        #     else: 
-        #         #If the base page is full 
-        #         self.base_pages[i].append(self.bufferPool.createNewPageAndGetId()) #Create a new base page in that columns bp list 
-        #         self.bp_index[i] += 1 #Increment the index of the current base page 
-        #         page = self.bufferPool.getPageById(self.base_pages[i][self.bp_index[i]])
-        #         page.write(bytearray(value, "utf-8")) #Write the value to the new base page using the incremented index 
-        #         rid = rid + ((self.bp_index[i],  page.numEntries - 1),) #Save the RID tuple for this column as (incremented bp_index, page.num_entries-1)
-        #         indexCols[i] = page.numEntries - 1
-
-        #     col_page_ids[i] = self.base_pages[i][self.bp_index[i]]
-
-        # record = Record(rid, columns[0][0], col_page_ids, self.bufferPool, indexCols) #Create a record using the new rid, key(first column) and the columns 
-        # #print("TEST", columns[0])
-        # self.bp_directory[rid] = record #Map the RID to the physical record 
-        
-        # # print(record.pageCols)
-        # self.key_rid[columns[0][0]] = [rid] #Map the key to the RID. Key: [rid, rid, rid]
-        #Now we can do Key->RID->Record Useful for search 
- 
-
+                    page = self.bufferPool.getPage()
+                    index = page.write(value) 
+                    record_location[i] = (page.pageID, index)                #SAVE THE LOCATION FOR THAT COLUMN 
+                    if not page.hasCapacity():                                         #IF THE PAGE IS FULL AFTER INSERT 
+                        self.bufferPool.colMemFull[i].append(page)                     #MOVE IT TO FULL PAGES IN MEMORY 
+                        self.bufferPool.colMemPartial[i].remove(page)
+        self.index.pkl_index[columns[self.key]] = [tuple([tuple(x) for x in record_location])]
+          
     def delete(self, primary_key):
         for loc in self.index.pkl_index[primary_key]:
              #loc = ((pid, idx) () () ())
              for i, pid in enumerate(loc):
-                page = self.bufferpool.getPageByID(pid[0])
+                page = self.bufferPool.getPageByID(pid[0])
                 data = page.read(pid[1]) 
                 page.remove(pid[1]) 
                 for version in self.index.vk_index[i][data]: 
@@ -223,26 +146,6 @@ class Table:
                         self.index.vk_index[i][data][version].remove(primary_key)
       
         del self.index.pkl_index[primary_key] 
-        return
-    
-
-        for loc in self.key_rid[primary_key]: 
-            self.delete_version(loc) 
-
-        del self.key_rid[primary_key] 
-        return 
-        
-        base_record = self.bp_directory[self.key_rid[primary_key][0]]
-        
-        if base_record.rid in self.tp_directory: 
-            for record in self.tp_directory[base_record.rid]:
-                record.rid = -1 
-
-
-       # for record in self.tp_directory[base_record.rid]: #Use the tp directory to loop through tail records of that base record 
-            #record.rid = -1 #Invalidate each associated tail record 
-        #base_record = self.bp_directory[self.key_rid[primary_key]]  #Find the physical record using the given key. 
-        base_record.rid = -1 #Invalidate the base record rid 
 
     def update(self, primary_key, *columns):
         """
@@ -268,118 +171,27 @@ class Table:
                 newColumns[i] = value 
             
         self.insert(newColumns) 
-        return
-
-
-
-
-
-
-
-
-        base_record = self.bp_directory[self.key_rid[primary_key][0]]
-        #base_record = Record(self.key_rid[primary_key][0], primary_key, self.bp_directory[self.key_rid[primary_key][0]].columns)
-        latest_tail = None 
-        if base_record.rid in self.tp_directory:
-            latest_tail = self.tp_directory[base_record.rid][-1]
-        else:
-            latest_tail = base_record.copy()
-        #tail_record = base_record
-        tail_record = Record((), latest_tail.key, latest_tail.pageCols, latest_tail.bufferPool, latest_tail.indexCols)
-        #tail_record.columns = columns
-        
-        for i,value in enumerate(columns):    
-            if value != None:
-                tail_page = self.bufferPool.getPageById(self.tail_pages[i][self.tp_index[i]])
-                if tail_page.has_capacity(len(str(value))):
-                    tail_page.write(bytearray(str(value), "utf-8"))
-                    tail_record.rid = tail_record.rid + ((self.tp_index[i], tail_page.numEntries - 1),)
-                else:
-                    tail_page_id =  self.bufferPool.createNewPageAndGetId()
-                    self.tail_pages[i].append(tail_page_id)
-                    self.tp_index[i] += 1 
-
-                    tail_page = self.bufferPool.getPageById(self.tail_pages[i][self.tp_index[i]])
-                    tail_page.write(bytearray(str(value), "utf-8"))        
-                    tail_record.rid = tail_record.rid + ((self.tp_index[i], tail_page.numEntries - 1),)
-                #print("TEST: ", tail_record.columns)
-                tail_record.indexCols[i] = tail_page.numEntries - 1
-                tail_record.pageCols[i] = tail_page.pageID
-                # tail_record.columns[i] = value
-
-        if base_record.rid in self.tp_directory:
-            self.tp_directory[base_record.rid].append(tail_record)
-        else:
-            self.tp_directory[base_record.rid] = [tail_record]
-        
-        
-        #self.tp_directory[base_record.rid] += tail_record
-        self.key_rid[primary_key].append(tail_record.rid)
-
-
-        #     if value != None:
-        #         if self.tail_pages[i][self.tp_index[i]].has_capacity(len(str(value))):
-        #             self.tail_pages[i][self.tp_index[i]].write(bytearray(str(value), "utf-8"))
-        #             tail_record.rid = tail_record.rid + ((self.tp_index[i], self.tail_pages[i][self.tp_index[i]].numEntries - 1),)
-        #         else:
-        #             self.tail_pages[i].append(Page())
-        #             self.tp_index[i] += 1 
-        #             self.tail_pages[i][self.tp_index[i]].write(bytearray(str(value), "utf-8"))        
-        #             tail_record.rid = tail_record.rid + ((self.tp_index[i], self.tail_pages[i][self.tp_index[i]].numEntries - 1),)
-        #         #print("TEST: ", tail_record.columns)
-        #         tail_record.columns[i] = value
-
-        # if base_record.rid in self.tp_directory:
-        #     self.tp_directory[base_record.rid].append(tail_record)
-        # else:
-        #     self.tp_directory[base_record.rid] = [tail_record]
-        
-        
-        # #self.tp_directory[base_record.rid] += tail_record
-        # self.key_rid[primary_key].append(tail_record.rid)
-
-    def delete_version(self, location): 
-        #LOCATION = (PID, OFFSET)
-        #OPEN PAGE WITH PID 
-        #DELETE DATA AT OFFSET 
-        return 
     
     def save(self): 
         """
         save mem pages to disk: 
 
         """
-        for PID in self.bufferpool.getMemPages():
-            self.bufferpool.savePage(PID)
+        for page in self.bufferPool.getMemPages():
+            self.bufferPool.savePage(page[0].pageID)
 
-        with open(self.path+str(self.name)+".txt", "w") as file:
+        with open(f"{self.path}{self.name}.meta", "w") as file:
             file.write(f"{self.num_columns}\n")
             file.write(f"{self.key}\n")
 
-            for key, value in self.bufferpool.page_directory:
+            for key, value in self.bufferPool.page_directory:
                 file.write(f"{key}:{value}\n")
             
             file.write("Index") 
             file.write(str(self.index))
-
-            #num_columns
-            #key
-            #page dir
-            #pid:()
-            #pid:1
-            #....
-            #Index 
-            #PKL
-            #VKL 
-
-            #loop the lines 
-            #if value[0] is 0:
-            #add to colDiskPartial[]
-            #if value is !:
-            #add to colDiskFull 
     
-    def load(self): 
-        with open(self.path+str(self.name)+".txt", "r") as file:
+    def load(self, bufferPool): 
+        with open(f"{self.path}{self.name}.meta", "r") as file:
             self.num_columns = file.readline() 
             self.key = file.readline() 
             while line != "Index": 
@@ -387,10 +199,10 @@ class Table:
                 key, value = line.split(":") 
             
                 tuple_of_integers = tuple([int(x) for x in value[:-1].strip('()').split(',')])
-                self.bufferpool.page_directory[key] = tuple_of_integers 
+                self.bufferPool.pageDirectory[key] = tuple_of_integers 
                 colIdx = tuple_of_integers[2]
                 if tuple_of_integers[0]: 
-                    self.bufferpool.colDiskFull[colIdx].append(key) 
+                    self.bufferPool.colDiskFull[colIdx].append(key) 
                 else:
                     self.bufferPool.colDiskPartial[colIdx].append(key)
                 

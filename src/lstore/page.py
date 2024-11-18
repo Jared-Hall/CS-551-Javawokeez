@@ -1,4 +1,5 @@
 import time
+import os
 """
 Documentation for the page class.
 Author: Jared Hall jhall10@uoregon.edu
@@ -83,7 +84,7 @@ class Page:
     def setClean(self):
         self.isDirty = False
 
-    def has_capacity(self):
+    def hasCapacity(self):
         """
         Description: This function checks if there is enough space to write to the page.
         Inputs:
@@ -99,8 +100,10 @@ class Page:
         """
         status = True
         #Step-01: Write the page index
+        path = self.path
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(f"{self.path}{self.pageID}{suffix}.offsets", "w") as offsetFile:
-            offsetFile.write(','.join(self.availableOffsets))
+            offsetFile.write(','.join([str(x) for x in self.availableOffsets]))
         with open(f"{self.path}{self.pageID}{suffix}.bin", "wb") as dataFile:
             dataFile.write(bytes(self.data))
         return status

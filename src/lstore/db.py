@@ -55,7 +55,6 @@ class Database():
         
         
         """
-
         self.path = path
 
     def close(self):
@@ -66,28 +65,10 @@ class Database():
         save the key_rid index to disk 
         
         """
+        #For each table
         for name, table in self.tables:
-            buffer = table.bufferpool
-            with open(str(self.path)+"/"+str(name)+"-full.bin", "wb") as file:
-                file.write((table.key).to_bytes(4, 'big'))
-                file.write((table.num_columns).to_bytes(4, 'big'))
-                for col in buffer.colDiskFull:
-                    file.write(len(col).to_bytes(4, 'big')) 
-                    for PID in col: 
-                        file.write(len(PID).to_bytes(4, 'big'))
-                        file.write(PID.encode("utf-8"))
-
-            with open(str(self.path)+"/"+str(name)+"-"+str(table.num_columns)+"-"+str(table.key)+"-partial.bin", "wb") as file:
-                file.write((table.key).to_bytes(4, 'big'))
-                file.write((table.num_columns).to_bytes(4, 'big'))
-                for col in buffer.colDiskPartial:
-                    file.write(len(col).to_bytes(4, 'big')) 
-                    for PID in col: 
-                        file.write(len(PID).to_bytes(4, 'big'))
-                        file.write(PID.encode("utf-8"))
-
-                
-        self.path = None 
+            #Step-01: Write all memory to disk and close the table
+            table.save()
 
     """
     # Creates a new table
@@ -96,7 +77,8 @@ class Database():
     :param key: int             #Index of table key in columns
     """
     def create_table(self, name, num_columns, key_index):
-        table = Table(name, num_columns, key_index, self.path)
+        bufferpool = BufferPool(num_columns, 10*num_columns)
+        table = Table(name, num_columns, key_index, bufferpool, self.path)
         self.tables[name] = table #Store the table
         return table
 
@@ -116,42 +98,19 @@ class Database():
     # Returns table with the passed name
     """
     def get_table(self, name):
-        diskFull = []
-        diskPartial = []
-        with open(str(self.path)+"/"+name+"-full.bin", "rb") as file:
-            key = int.from_bytes(file.read(4), 'big') 
-            numCols = int.from_bytes(file.read(4), 'big') 
-            for i in range(numCols):
-                col = []
-                numPages = int.from_bytes(file.read(4), 'big') 
-                for j in range(numPages): 
-                    PID_len = int.from_bytes(file.read(4), 'big') 
-                    data = file.read(PID_len).decode('utf-8')
-                    col.append(data)
-                diskFull.append(col)
-
-        with open(str(self.path)+"/"+name+"-full.bin", "rb") as file:
-            key = int.from_bytes(file.read(4), 'big') 
-            numCols = int.from_bytes(file.read(4), 'big') 
-            for i in range(numCols):
-                col = []
-                numPages = int.from_bytes(file.read(4), 'big') 
-                for j in range(numPages): 
-                    PID_len = int.from_bytes(file.read(4), 'big') 
-                    data = file.read(PID_len).decode('utf-8')
-                    col.append(data)
-                diskPartial.append(col) 
-
-        table = self.create_table(name, numCols, key)
-        table.bufferpool.colDiskFull = diskFull 
-        table.bufferpool.colDiskPartial = diskPartial
+        numColumns = 0
+        with open(f"{self.path}/{name}/{name}.meta", "r") as file:
+            numColumns = (file.readline().strip('\n'))
+            key = int(file.readline())
+        table = self.create_table(name, numColumns, key)
+        table.load()
         self.tables[name] = table
         return table 
 
 
 class BufferPool:
 
-    def __init__(self, num_columns, path, maxPages=10):
+    def __init__(self, num_columns, maxPages=10):
         """
         Description: The BufferPool Manager for the Database
         Inputs: 
@@ -173,7 +132,7 @@ class BufferPool:
 
         self.pageDirectoryCapacity = 10000000
         self.pageDirectory = {} 
-        self.path = path
+        self.path = ""
 
         # col-mem-partial & col-mem-full make up the complete buffer(memory) pool of Page objects
         self.colMemPartial = [[]] * num_columns # Every element is an array that stores Page objects at the corresponding column index
@@ -225,7 +184,7 @@ class BufferPool:
         """
         PID = "P-" + str(self.pageCount)
         page = Page(PID, self.path)
-        page.save() #initial save to create the files
+        page.save("-partial") #initial save to create the files
         self.pageDirectory[PID] = (0, 1, columnIdx, len(self.colMemPartial))
         self.colMemPartial[columnIdx].append(page)
         self.pageCount += 1
@@ -347,8 +306,6 @@ class BufferPool:
                 ret = False
         return ret
     
-
-
     def evict(self):
         """
         Evicts 60% of the pages in memory using the LFU (Least Frequently Used) strategy.
