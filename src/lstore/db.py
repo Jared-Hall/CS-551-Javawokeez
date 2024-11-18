@@ -77,7 +77,7 @@ class Database():
     :param key: int             #Index of table key in columns
     """
     def create_table(self, name, num_columns, key_index):
-        bufferpool = BufferPool(num_columns, 10*num_columns)
+        bufferpool = BufferPool(num_columns, 1*num_columns)
         table = Table(name, num_columns, key_index, bufferpool, self.path)
         self.tables[name] = table #Store the table
         return table
@@ -185,7 +185,7 @@ class BufferPool:
         PID = "P-" + str(self.pageCount)
         page = Page(PID, self.path)
         page.save("-partial") #initial save to create the files
-        self.pageDirectory[PID] = (0, 1, columnIdx, len(self.colMemPartial))
+        self.pageDirectory[PID] = (0, 1, columnIdx, len(self.colMemPartial[columnIdx]))
         self.colMemPartial[columnIdx].append(page)
         self.pageCount += 1
         self.numPages += 1
@@ -195,6 +195,8 @@ class BufferPool:
         ret = None
         if(PID in self.pageDirectory): #if page exists
             index = self.pageDirectory[PID]
+            #print(index)
+            #print(self.colMemPartial)
             if(index[1]): #if page in memory then return the page reference
                 if(index[0]): #returning a full page
                     ret = self.colMemFull[index[2]][index[3]]

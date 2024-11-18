@@ -46,6 +46,9 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
+        final = self.select_version(search_key, search_key_index, projected_columns_index, -1) 
+        return final
+
         """
         select: 
         return list of latest tail record objects with search_key at search_key_index. only return columns with 1 
@@ -127,7 +130,20 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
-        """
+            print("INDEX: ", search_key, self.table.index.pkl_index[search_key])
+            colToReturn = []
+            for loc in self.table.index.pkl_index[search_key][relative_version]:
+                print(loc[0])
+                page = self.table.bufferPool.getPage(loc[0])
+                data = page.read(loc[1])
+                colToReturn.append(int(data))
+            
+            print(colToReturn)
+            return [Record(search_key, colToReturn)]
+                   
+
+                    
+            """
         select_version: 
         return list of relative version record objects with search_key at search_key_index. only return columns with 1 
         final = [] 
@@ -163,24 +179,7 @@ class Query:
         
         
         
-        """
-        try:
-            record_locations = self.table.key_rid[search_key] 
-            
-            #step-01: [br]   
-            records = [self.table.bp_directory[record_locations[0]]]
-            # [br, te1, tr2, ....]
-            if(record_locations[0] in self.table.tp_directory): #if there are tail records
-                records += self.table.tp_directory[record_locations[0]]
-
-            if(relative_version == 0):
-                return [records[-1].getRecord()]
-            elif(abs(relative_version) >= len(records)):
-                return [records[0].getRecord()]
-            else:
-                return [records[relative_version - 1].getRecord()]
-        except:
-            return False
+     """
 
 
     def FilterColumns(self, columns, projected_columns_index):

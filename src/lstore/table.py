@@ -16,35 +16,20 @@ SCHEMA_ENCODING_COLUMN = 3
 
 class Record:
 
-    def __init__(self, rid, key, columns, bufferPool, indexCols):
-        self.rid = rid
+    def __init__(self, key, columns):
+       # self.rid = rid
         self.key = key
 
-        self.bufferPool = bufferPool
-        self.indexCols = indexCols
+        #self.bufferPool = bufferPool
+        #self.indexCols = indexCols
 
-        self.columns = [0] * len(columns)
+        self.columns = columns
         #Change columns to hold list of page ids
         # self.columns = columns
         self.pageCols = columns
 
         self.indirection = None
 
-    def copy(self):
-        new_cols = [column for column in self.pageCols]
-        return Record(self.rid, self.key, new_cols, self.bufferPool, self.indexCols)
-
-    def getRecord(self):
-        cols = [0] * len(self.pageCols)
-        for i, pageID in enumerate(self.pageCols):
-            page = self.bufferPool.getPageById(pageID)
-            cols[i] = int(page.read(self.indexCols[i])) #int.from_bytes(page.read(self.indexCols[i]), byteorder='big', signed=False)
-        self.columns = cols 
-        return self
-    
-    def getColumnValue(self, index):
-        page = self.bufferPool.getPageById(self.pageCols[index])
-        return int(page.read(self.indexCols[index]))        
 
 
 class Table:
@@ -109,30 +94,51 @@ class Table:
         """
 
         record_location = [[]]*len(columns[0])
-        for i, value in enumerate(columns[0]):                                      #LOOP THROUGH COLUMNS                            
+        for i, value in enumerate(columns[0]): 
+            index = None   
+           
+            
+            #self.index.vk_index[i][self.key][value] = {0:[columns[0][0]]}                                 #LOOP THROUGH COLUMNS                            
             if len(self.bufferPool.colMemPartial[i]) > 0:
-                page = self.bufferPool.colMemPartial[i][0]                         #RETRIEVE THE PAGE 
-                index = page.write(value)                                                  #WRITE VALUE TO THE PAGE 
+                page = self.bufferPool.colMemPartial[i][0]  
+                                               #RETRIEVE THE PAGE 
+                index = page.write(value)
+                                                              #WRITE VALUE TO THE PAGE 
                 record_location[i] = (page.pageID, index)                #SAVE THE LOCATION FOR THAT COLUMN 
+                data = page.read(index)   
+                print("DATA FOR COL: ", i, data, page.pageID, index)            
                 if not page.hasCapacity():                                         #IF THE PAGE IS FULL AFTER INSERT 
                     self.bufferPool.colMemFull[i].append(page)                     #MOVE IT TO FULL PAGES IN MEMORY 
                     self.bufferPool.colMemPartial[i].remove(page)                  #REMOVE IT FROM THE PARTIAL PAGES IN MEMORY 
             else: #no partials in memory
                 if(len(self.bufferPool.colDiskPartial[i]) > 0):
-                    page = self.bufferPool.getPage(self.bufferPool.colDiskPartial[0].pageID)
+                    page = self.bufferPool.getPage(self.bufferPool.colDiskPartial[0].pageID, i)
                     index = page.write(value)
-                    record_location[i] = (page.pageID, index)                #SAVE THE LOCATION FOR THAT COLUMN 
+                    record_location[i] = (page.pageID, index)   
+                    data = page.read(index)   
+                    print("DATA FOR COL: ", i, data, page.pageID, index)                                         #SAVE THE LOCATION FOR THAT COLUMN 
                     if not page.hasCapacity():                                         #IF THE PAGE IS FULL AFTER INSERT 
                         self.bufferPool.colMemFull[i].append(page)                     #MOVE IT TO FULL PAGES IN MEMORY 
                         self.bufferPool.colMemPartial[i].remove(page)
                 else:
-                    page = self.bufferPool.getPage()
-                    index = page.write(value) 
+                    page = self.bufferPool.getPage(columnIdx=i)
+                    index = page.write(value)
+                     
                     record_location[i] = (page.pageID, index)                #SAVE THE LOCATION FOR THAT COLUMN 
+                    data = page.read(index)   
+                    print("DATA FOR COL: ", i, data, page.pageID, index)            
                     if not page.hasCapacity():                                         #IF THE PAGE IS FULL AFTER INSERT 
                         self.bufferPool.colMemFull[i].append(page)                     #MOVE IT TO FULL PAGES IN MEMORY 
                         self.bufferPool.colMemPartial[i].remove(page)
-        self.index.pkl_index[columns[self.key]] = [tuple([tuple(x) for x in record_location])]
+        
+        print("TUPLE: ", [tuple([tuple(x) for x in record_location])])
+        print("FIRST COLUMN: ", columns[0][0])
+         
+        self.index.pkl_index[columns[0][0]] = [tuple([tuple(x) for x in record_location])]
+
+        print("UPDATED: ", self.index.pkl_index[columns[0][0]])
+        
+        
           
     def delete(self, primary_key):
         for loc in self.index.pkl_index[primary_key]:

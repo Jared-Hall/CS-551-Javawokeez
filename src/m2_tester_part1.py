@@ -25,7 +25,7 @@ number_of_updates = 10
 
 seed(3562901)
 
-for i in range(0, number_of_records):
+for i in range(0, 100):
     key = 92106429 + i
     records[key] = [key, randint(0, 20), randint(0, 20), randint(0, 20), randint(0, 20)]
     query.insert(*records[key])
@@ -36,9 +36,15 @@ print("Insert finished")
 for key in keys:
     record = query.select(key, 0, [1, 1, 1, 1, 1])[0]
     error = False
+    print("KEY: ", key)
+    print("REC.COLUMNS: ", record.columns)
+    print("RECORD: ", records[key])
     for i, column in enumerate(record.columns):
+        print("TEST:", column, records[key][i])
         if column != records[key][i]:
+            print(column, records[key][i])
             error = True
+            input("error")
     if error:
         print('select error on', key, ':', record, ', correct:', records[key])
     else:
@@ -52,6 +58,7 @@ for _ in range(number_of_updates):
         updated_columns = [None, None, None, None, None]
         for i in range(2, grades_table.num_columns):
             # updated value
+         
             value = randint(0, 20)
             updated_columns[i] = value
             # copy record to check
