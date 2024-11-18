@@ -63,7 +63,6 @@ for j in range(number_of_operations_per_record):
 print("Update finished")
 
 
-
 # add trasactions to transaction workers  
 for i in range(number_of_transactions):
     transaction_workers[i % num_threads].add_transaction(transactions[i])

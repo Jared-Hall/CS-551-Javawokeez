@@ -2,7 +2,7 @@ from lstore.db import Database
 from lstore.query import Query
 from lstore.transaction import Transaction
 from lstore.transaction_worker import TransactionWorker
-from time import process_time
+
 from random import choice, randint, sample, seed
 
 db = Database()
@@ -63,7 +63,7 @@ for i in range(num_threads):
 for i in range(num_threads):
     transaction_workers[i].join()
 
-update_time_0 = process_time()
+
 # Check inserted records using select query in the main thread outside workers
 for key in keys:
     record = query.select(key, 0, [1, 1, 1, 1, 1])[0]
@@ -76,12 +76,7 @@ for key in keys:
     else:
         pass
         # print('select on', key, ':', record)
-
-
-update_time_1 = process_time()
-
 print("Select finished")
-print("AggrSelectegate took:  \t\t\t", update_time_1 - update_time_0)
 
 
 db.close()

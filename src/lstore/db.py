@@ -96,10 +96,7 @@ class Database():
     :param key: int             #Index of table key in columns
     """
     def create_table(self, name, num_columns, key_index):
-
-        bufferPool = BufferPool(num_columns, self.path)
-        index = Index(num_columns)
-        table = Table(name, num_columns, key_index, bufferPool, index)
+        table = Table(name, num_columns, key_index, self.path)
         self.tables[name] = table #Store the table
         return table
 
@@ -193,10 +190,8 @@ class BufferPool:
         self.dirtyPageList = [None] * self.pageDirectoryCapacity
         self.dirtyPageListTail = 0
 
-    def hasCapacityForColumn(self, index):
-        if len(self.colMemFull(index)) < self.maxColumnCapacity:
-            return True
-        return False    
+    def hasCapacity(self):
+        return self.numPages < self.capacity   
 
     def getMemPages(self):
         """
@@ -229,7 +224,7 @@ class BufferPool:
             Returns the page ID of the created page
         """
         PID = "P-" + str(self.pageCount)
-        page = Page(PID)
+        page = Page(PID, self.path)
         page.save() #initial save to create the files
         self.pageDirectory[PID] = (0, 1, columnIdx, len(self.colMemPartial))
         self.colMemPartial[columnIdx].append(page)
@@ -336,14 +331,14 @@ class BufferPool:
             if(not index[1]): #the page is in disk then load it else it's in memory, no load necessary.
                 if(index[0]): #if the page is full
                     self.colDiskFull[index[2]].pop(index[3]) #pop full page PID from disk
-                    page = Page(PID)
+                    page = Page(PID, self.path)
                     page.load(self.path, '-full')
                     index = (index[0], 1, index[2], len(self.colMemFull))
                     self.colMemFull[index[2]].append(page)
                     self.pageDirectory[PID] = index
                 else:
                     self.colDiskPartial[index[2]].pop(index[3]) #pop partial page PID from disk
-                    page = Page(PID)
+                    page = Page(PID, self.path)
                     page.load(self.path, '-partial')
                     index = (index[0], 1, index[2], len(self.colMemPartial))
                     self.colMemPartial[index[2]].append(page)

@@ -1,6 +1,6 @@
 from lstore.db import Database
 from lstore.query import Query
-from time import process_time
+
 from random import choice, randint, sample, seed
 
 db = Database()
@@ -25,21 +25,13 @@ number_of_updates = 10
 
 seed(3562901)
 
-update_time_0 = process_time()
 for i in range(0, number_of_records):
     key = 92106429 + i
     records[key] = [key, randint(0, 20), randint(0, 20), randint(0, 20), randint(0, 20)]
     query.insert(*records[key])
 keys = sorted(list(records.keys()))
-
-
-
-update_time_1 = process_time()
-
 print("Insert finished")
-print("Insert took:  \t\t\t", update_time_1 - update_time_0)
 
-update_time_0 = process_time()
 # Check inserted records using select query
 for key in keys:
     record = query.select(key, 0, [1, 1, 1, 1, 1])[0]
@@ -52,12 +44,8 @@ for key in keys:
     else:
         pass
         # print('select on', key, ':', record)
-update_time_1 = process_time()
-
 print("Select finished")
-print("Select took:  \t\t\t", update_time_1 - update_time_0)
 
-update_time_0 = process_time()
 # x update on every column
 for _ in range(number_of_updates):
     for key in keys:
@@ -82,13 +70,8 @@ for _ in range(number_of_updates):
                 pass
                 # print('update on', original, 'and', updated_columns, ':', record)
             updated_columns[i] = None
-
-update_time_1 = process_time()
-
 print("Update finished")
-print("Update took:  \t\t\t", update_time_1 - update_time_0)
 
-update_time_0 = process_time()
 for i in range(0, number_of_aggregates):
     r = sorted(sample(range(0, len(keys)), 2))
     column_sum = sum(map(lambda key: records[key][0], keys[r[0]: r[1] + 1]))
@@ -98,9 +81,5 @@ for i in range(0, number_of_aggregates):
     else:
         pass
         # print('sum on [', keys[r[0]], ',', keys[r[1]], ']: ', column_sum)
-
-update_time_1 = process_time()
-
 print("Aggregate finished")
-print("Aggregate took:  \t\t\t", update_time_1 - update_time_0)
 db.close()

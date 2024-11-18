@@ -17,7 +17,7 @@ Modifications:
 """
 class Page:
 
-    def __init__(self, pid, capacity=4096, size=8):
+    def __init__(self, pid, path, capacity=4096, size=8):
         """
         Description: The physical page of our columnar storage. A page contains a single column of data.
         Notes: pid's must be unique since it is both an identifier for the page and it's data file.
@@ -58,6 +58,7 @@ class Page:
         self.cycle = 30
 
         self.capacity = 0
+        self.path = path
         self.data = None
         self.availableOffsets = None
         
@@ -90,10 +91,7 @@ class Page:
         Ouputs:
             Boolean: <True> if there is enough space, else <False>
         """
-        if(len(self.availableOffsets) > 0):
-            return True
-        else:
-            return False
+        return True if(len(self.availableOffsets) > 0) else False
     
     def save(self, suffix):
         """
@@ -101,10 +99,9 @@ class Page:
         """
         status = True
         #Step-01: Write the page index
-        with open("storage/"+self.pageID+".offsets", "w") as offsetFile:
+        with open(f"{self.path}{self.pageID}{suffix}.offsets", "w") as offsetFile:
             offsetFile.write(','.join(self.availableOffsets))
-
-        with open("storage/"+self.pageID+".bin", "wb") as dataFile:
+        with open(f"{self.path}{self.pageID}{suffix}.bin", "wb") as dataFile:
             dataFile.write(bytes(self.data))
         return status
 
@@ -113,9 +110,9 @@ class Page:
         Description: This method loads the page (data and index) from disk.
         """
         status = True
-        with open("storage/"+self.pid+".bin", "rb") as dataFile:
+        with open(f"{self.path}{self.pageID}{suffix}.bin", "rb") as dataFile:
             self.data = bytearray(dataFile.read())
-        with open("storage/"+self.pageID+".offsets", "r") as offsetFile:
+        with open(f"{self.path}{self.pageID}{suffix}.offsets", "r") as offsetFile:
             self.availableOffsets = [int(x) for x in offsetFile.read().split(',')]
         return status
 

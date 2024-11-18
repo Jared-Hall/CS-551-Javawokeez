@@ -6,8 +6,8 @@ Description:
 
 """
 from lstore.index import Index
-from time import time
 from lstore.page import Page
+from lstore.db import BufferPool
 
 INDIRECTION_COLUMN = 0
 RID_COLUMN = 1
@@ -55,13 +55,14 @@ class Table:
     :param num_columns: int     #Number of Columns: all columns are integer
     :param key: int             #Index of table key in columns
     """
-    def __init__(self, name, num_columns, key, bufferPool):
+    def __init__(self, name, num_columns, key, bufferPool, path):
         self.name = name
         self.key = key
         self.num_columns = num_columns
+        self.path = f"{path}/{name}/"
         self.page_directory = {}
-        self.index = Index(self)
-        self.bufferPool = bufferPool
+        self.bufferPool = BufferPool(num_columns, self.path)
+        self.index = Index(num_columns)
 
         # self.base_pages = [[Page()] for i in range(num_columns)] #List of List [[Base Pages for column 1], [Base Pages for column 2], [Base Pages for column 3]]
         # self.tail_pages = [[Page()] for i in range(num_columns)] #List of List [Tail Pages for column 1], [Tail Pages for column 2], [Tail Pages for column 3]]
