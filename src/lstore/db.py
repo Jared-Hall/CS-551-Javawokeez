@@ -198,17 +198,25 @@ class BufferPool:
         return False    
 
     def getMemPages(self):
-         """
+        """
         Description: This function creates a new page and adds it to the specified column index
 
         Inputs: 
             N/A
         Outputs:
-            Returns a list of tuples. Format: [(ref, LFU, full, columnIdx, indx), ...]
+            Returns a list of tuples. Format: [(ref, LFU, columnIdx, indx), ...]
         
         """
-        # TODO
-        pass   
+        result = []
+        for i, column in enumerate(self.colMemPartial):
+            for j, page in enumerate(column):
+                result.append((page, self.colMemPartial, page.calculateLFU(), i, j))
+
+        for i, column in enumerate(self.colMemFull):
+            for j, page in enumerate(column):
+                result.append((page, self.colMemFull, page.calculateLFU(), i, j))
+
+        return result   
 
     def createPage(self, columnIdx):
         """
@@ -313,47 +321,71 @@ class BufferPool:
 
     def evict(self):
         """
-        Evicts 40% of the pages in memory using the LFU (Least Frequently Used) strategy.
+        Evicts 60% of the pages in memory using the LFU (Least Frequently Used) strategy.
         Moves evicted pages to disk and updates metadata accordingly.
         """
         # Collect all pages and their LFU values
-        page_list = []
-        for col_idx, pages in enumerate(self.colMemPartial):
-            for page in pages:
-                lfu_score = self.calculateLFU(page)
-                page_list.append((page, col_idx, False, lfu_score))  # False for partial column
-        for col_idx, pages in enumerate(self.colMemFull):
-            for page in pages:
-                lfu_score = self.calculateLFU(page)
-                page_list.append((page, col_idx, True, lfu_score))  # True for full column
 
-        # Calculate the number of pages to evict
-        num_pages = len(page_list)
-        evict_count = max(1, int(num_pages * 0.4))  # Evict at least one page
+        pages_in_mem = self.getMemPages()
+        sorted_pages = sorted(pages_in_mem, key = lambda x: x[2]) # (page, col_mem_full/ col_mem_partial, page.calculateLFU(), columnIndex, j)
 
-        # Sort pages by their LFU value (ascending)
-        page_list.sort(key=lambda x: x[3])  # Sort by LFU score
+        
+        num_to_evict = int(0.4 * len(pages_in_mem))
 
-        # Evict the required number of pages
-        for i in range(evict_count):
-            page, col_idx, is_full, _ = page_list[i]
-            pid = page.pageID
+        for i in range(1, num_to_evict + 1):
+            tuple_to_evict = sorted_pages[-i]
+            page = tuple_to_evict[0]
 
-            # Save page to disk if it's dirty
-            if self.dirtyPageList[pid]:
-                self.savePage(pid)
-                self.dirtyPageList[pid] = None
+            if page.isDirty:
+                page.save()
 
-            # Remove from memory and update metadata
-            if is_full:
-                # Evicting from full memory pool
-                self.colMemFull[col_idx].remove(page)
-                self.colDiskFull[col_idx].append(pid)
-                self.pageDirectory[pid] = (True, col_idx, len(self.colDiskFull[col_idx]) - 1)
-            else:
-                # Evicting from partial memory pool
-                self.colMemPartial[col_idx].remove(page)
-                self.colDiskPartial[col_idx].append(pid)
-                self.pageDirectory[pid] = (False, col_idx, len(self.colDiskPartial[col_idx]) - 1)
+                
+            array_to_remove_from = tuple_to_evict[1]
+            col_index = tuple_to_evict[3]
+            index_in_col = tuple_to_evict[4]
 
-        return True  # Eviction completed
+            
+            array_to_remove_from[col_index].pop(index_in_col)
+            
+
+
+        # page_list = []
+        # for col_idx, pages in enumerate(self.colMemPartial):
+        #     for page in pages:
+        #         lfu_score = self.calculateLFU(page)
+        #         page_list.append((page, col_idx, False, lfu_score))  # False for partial column
+        # for col_idx, pages in enumerate(self.colMemFull):
+        #     for page in pages:
+        #         lfu_score = self.calculateLFU(page)
+        #         page_list.append((page, col_idx, True, lfu_score))  # True for full column
+
+        # # Calculate the number of pages to evict
+        # num_pages = len(page_list)
+        # evict_count = max(1, int(num_pages * 0.4))  # Evict at least one page
+
+        # # Sort pages by their LFU value (ascending)
+        # page_list.sort(key=lambda x: x[3])  # Sort by LFU score
+
+        # # Evict the required number of pages
+        # for i in range(evict_count):
+        #     page, col_idx, is_full, _ = page_list[i]
+        #     pid = page.pageID
+
+        #     # Save page to disk if it's dirty
+        #     if self.dirtyPageList[pid]:
+        #         self.savePage(pid)
+        #         self.dirtyPageList[pid] = None
+
+        #     # Remove from memory and update metadata
+        #     if is_full:
+        #         # Evicting from full memory pool
+        #         self.colMemFull[col_idx].remove(page)
+        #         self.colDiskFull[col_idx].append(pid)
+        #         self.pageDirectory[pid] = (True, col_idx, len(self.colDiskFull[col_idx]) - 1)
+        #     else:
+        #         # Evicting from partial memory pool
+        #         self.colMemPartial[col_idx].remove(page)
+        #         self.colDiskPartial[col_idx].append(pid)
+        #         self.pageDirectory[pid] = (False, col_idx, len(self.colDiskPartial[col_idx]) - 1)
+
+        # return True  # Eviction completed
