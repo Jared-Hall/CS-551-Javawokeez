@@ -32,7 +32,6 @@ class Query:
     """
     def insert(self, *columns):
         schema_encoding = '0' * self.table.num_columns
-        # TODO: Add schema encoding column to the list of columns 
         self.table.insert(columns)
         
 
