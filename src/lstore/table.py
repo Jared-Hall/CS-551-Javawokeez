@@ -94,15 +94,19 @@ class Table:
         """
 
         record_location = [[]]*len(columns[0])
-        for i, value in enumerate(columns[0]):    
-            print("INSERTING: ", value) 
+        for i, value in enumerate(columns[0]): 
+            index = None   
+           
+            
             #self.index.vk_index[i][self.key][value] = {0:[columns[0][0]]}                                 #LOOP THROUGH COLUMNS                            
             if len(self.bufferPool.colMemPartial[i]) > 0:
-                page = self.bufferPool.colMemPartial[i][0]                         #RETRIEVE THE PAGE 
+                page = self.bufferPool.colMemPartial[i][0]  
+                                               #RETRIEVE THE PAGE 
                 index = page.write(value)
-                print(index) 
-                print("READING: ", page.read(index))                                                #WRITE VALUE TO THE PAGE 
+                                                              #WRITE VALUE TO THE PAGE 
                 record_location[i] = (page.pageID, index)                #SAVE THE LOCATION FOR THAT COLUMN 
+                data = page.read(index)   
+                print("DATA FOR COL: ", i, data, page.pageID, index)            
                 if not page.hasCapacity():                                         #IF THE PAGE IS FULL AFTER INSERT 
                     self.bufferPool.colMemFull[i].append(page)                     #MOVE IT TO FULL PAGES IN MEMORY 
                     self.bufferPool.colMemPartial[i].remove(page)                  #REMOVE IT FROM THE PARTIAL PAGES IN MEMORY 
@@ -110,22 +114,30 @@ class Table:
                 if(len(self.bufferPool.colDiskPartial[i]) > 0):
                     page = self.bufferPool.getPage(self.bufferPool.colDiskPartial[0].pageID, i)
                     index = page.write(value)
-                    print(index)
-                    print("READING: ", page.read(index))    
-                    record_location[i] = (page.pageID, index)                #SAVE THE LOCATION FOR THAT COLUMN 
+                    record_location[i] = (page.pageID, index)   
+                    data = page.read(index)   
+                    print("DATA FOR COL: ", i, data, page.pageID, index)                                         #SAVE THE LOCATION FOR THAT COLUMN 
                     if not page.hasCapacity():                                         #IF THE PAGE IS FULL AFTER INSERT 
                         self.bufferPool.colMemFull[i].append(page)                     #MOVE IT TO FULL PAGES IN MEMORY 
                         self.bufferPool.colMemPartial[i].remove(page)
                 else:
                     page = self.bufferPool.getPage(columnIdx=i)
                     index = page.write(value)
-                    print(index)  
-                    print("READING: ", page.read(index))   
+                     
                     record_location[i] = (page.pageID, index)                #SAVE THE LOCATION FOR THAT COLUMN 
+                    data = page.read(index)   
+                    print("DATA FOR COL: ", i, data, page.pageID, index)            
                     if not page.hasCapacity():                                         #IF THE PAGE IS FULL AFTER INSERT 
                         self.bufferPool.colMemFull[i].append(page)                     #MOVE IT TO FULL PAGES IN MEMORY 
                         self.bufferPool.colMemPartial[i].remove(page)
+        
+        print("TUPLE: ", [tuple([tuple(x) for x in record_location])])
+        print("FIRST COLUMN: ", columns[0][0])
+         
         self.index.pkl_index[columns[0][0]] = [tuple([tuple(x) for x in record_location])]
+
+        print("UPDATED: ", self.index.pkl_index[columns[0][0]])
+        
         
           
     def delete(self, primary_key):

@@ -62,6 +62,8 @@ class Page:
         self.path = path
         self.data = None
         self.availableOffsets = None
+
+
         
         if(type(pid) != type("str") or "P-" not in pid):
             err = "ERROR: Parameter <pid> must be a string in the format P-<int>."
@@ -73,7 +75,8 @@ class Page:
             self.data = bytearray(capacity)
             self.capacity = capacity
             self.maxEntries = capacity//size
-            self.availableOffsets = [x for x in range(self.maxEntries)]
+            self.availableOffsets = [x for x in range(0, self.maxEntries, 8)]
+            
         else:
             err = "ERROR: Parameter <capacity> must be a non-zero integer."
             raise TypeError(err)
@@ -127,9 +130,12 @@ class Page:
         Outputs:
             index (int): The integer index that the data was stored at.
         """
+        
         self.LFU += 1
         index = self.availableOffsets.pop()
-        self.data[index : (index + 8)] = str(value).encode('utf-8')
+        self.data[index : (index + 8)] = str(value).ljust(8, "x").encode('utf-8')
+        
+        
         return index
         
     def read(self, index):
@@ -139,8 +145,7 @@ class Page:
             index (int): the index of the value you wanna read.
         """
         self.LFU += 1
-        print(index, self.data[index:(index+8)])
-        return (self.data[index:(index+8)]).decode('utf-8')
+        return (self.data[index:(index+8)]).decode('utf-8').replace("x", "")
 
     def remove(self, index):
         """

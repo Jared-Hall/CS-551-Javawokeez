@@ -77,7 +77,7 @@ class Database():
     :param key: int             #Index of table key in columns
     """
     def create_table(self, name, num_columns, key_index):
-        bufferpool = BufferPool(num_columns, 10*num_columns)
+        bufferpool = BufferPool(num_columns, 1*num_columns)
         table = Table(name, num_columns, key_index, bufferpool, self.path)
         self.tables[name] = table #Store the table
         return table
