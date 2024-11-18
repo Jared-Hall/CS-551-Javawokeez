@@ -52,7 +52,7 @@ class Page:
         """
         self.LFU = 0
         self.pin = -1
-        self.isDirty = True
+        self.isDirty = False
 
         self.startTime = time.time()
         self.cycle = 30
@@ -95,7 +95,7 @@ class Page:
         else:
             return False
     
-    def save(self):
+    def save(self, suffix):
         """
         Description: This method saves the page data and it's available offsets to disk.
         """
@@ -108,7 +108,7 @@ class Page:
             dataFile.write(bytes(self.data))
         return status
 
-    def load(self):
+    def load(self, suffix):
         """
         Description: This method loads the page (data and index) from disk.
         """
