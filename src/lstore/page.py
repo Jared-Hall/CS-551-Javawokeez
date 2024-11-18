@@ -139,6 +139,7 @@ class Page:
             index (int): the index of the value you wanna read.
         """
         self.LFU += 1
+        print(index, self.data[index:(index+8)])
         return (self.data[index:(index+8)]).decode('utf-8')
 
     def remove(self, index):
