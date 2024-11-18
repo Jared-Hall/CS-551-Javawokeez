@@ -74,9 +74,8 @@ class Page:
         if(type(capacity) == type(1) and capacity > 0):
             self.data = bytearray(capacity)
             self.capacity = capacity
+            self.availableOffsets = [x for x in range(0, capacity, size)]
             self.maxEntries = capacity//size
-            self.availableOffsets = [x for x in range(0, self.maxEntries, 8)]
-            
         else:
             err = "ERROR: Parameter <capacity> must be a non-zero integer."
             raise TypeError(err)
@@ -130,12 +129,19 @@ class Page:
         Outputs:
             index (int): The integer index that the data was stored at.
         """
-        
+        print(f"    [Page.write] Page.write called! writing data to bytes array")
         self.LFU += 1
-        index = self.availableOffsets.pop()
-        self.data[index : (index + 8)] = str(value).ljust(8, "x").encode('utf-8')
-        
-        
+        print(f"    [Page.write] First 5 offsets: {self.availableOffsets[:5]}")
+        print(f"    [Page.write] Fetching smallest available offset. Length of offsets: {len(self.availableOffsets)}")
+        index = self.availableOffsets.pop(0)
+        print(f"    [Page.write] index: {index} - Length of offsets: {len(self.availableOffsets)}")
+        print(f"    [Page.write] Slice in data array we are writing to: {index}-{index+8}")
+        data = str(value).encode('utf-8')
+        print(f"    [Page.write] Value(raw): {value} - value(str): {str(value)} - Encoded value: {data}")
+        print(f"    [Page.write] Data in array before writing: {self.data[index : (index + 8)]}") 
+        self.data[index : (index + 8)] = data
+        print(f"    [Page.write] Data in array after writing: {self.data[index : (index + 8)]}")
+        print(f"    [Page.write] Complete! Returning index: {index}")
         return index
         
     def read(self, index):
@@ -145,7 +151,11 @@ class Page:
             index (int): the index of the value you wanna read.
         """
         self.LFU += 1
-        return (self.data[index:(index+8)]).decode('utf-8').replace("x", "")
+        print(f"    [Page.read] Read Called with index: {index}")
+        print(f"    [Page.read] The data slice we are reading from: {self.data[index : (index+8)]}")
+        data = self.data[index : (index+8)]
+        print(f"    [Page.read] data(raw): {data} - decoded: {data.decode("utf-8")}" )
+        return data.decode('utf-8')
 
     def remove(self, index):
         """

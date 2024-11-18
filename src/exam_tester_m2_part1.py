@@ -41,6 +41,7 @@ for key in keys:
             error = True
     if error:
         print('select error on', key, ':', record, ', correct:', records[key])
+        input()
     else:
         pass
         # print('select on', key, ':', record)
