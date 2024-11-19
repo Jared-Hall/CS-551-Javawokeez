@@ -117,8 +117,13 @@ class Page:
         status = True
         with open(f"{self.path}{self.pageID}{suffix}.bin", "rb") as dataFile:
             self.data = bytearray(dataFile.read())
-        with open(f"{self.path}{self.pageID}{suffix}.offsets", "r") as offsetFile:
-            self.availableOffsets = [int(x) for x in offsetFile.read().split(',')]
+        
+        if(suffix != '-full'):
+            with open(f"{self.path}{self.pageID}{suffix}.offsets", "r") as offsetFile:
+                self.availableOffsets = [int(x) for x in offsetFile.read().split(',')]
+        else:
+            self.availableOffsets = []
+            
         return status
 
     def write(self, value):

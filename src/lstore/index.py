@@ -120,32 +120,34 @@ class Index:
         pklRep = pklRep[:-1].split(',') #  [pk:PID-idx#PID-idx#PID-idx|PID-idx#PID-idx#PID-idx, pk:...]
         for pkRep in pklRep: # pkRep -> pk:PID-idx#PID-idx#PID-idx|PID-idx#PID-idx#PID-idx
             pkRep = pkRep.split(':') #pkRep -> [pk, PID-idx#PID-idx#PID-idx|PID-idx#PID-idx#PID-idx]
-            key = pkRep[0]
+            key = int(pkRep[0])
             self.pkl_index[key] = []
             records = pkRep[1].split('|') # [PID-idx#PID-idx#PID-idx, PID-idx#PID-idx#PID-idx, ...]
             for recRep in records: #record -> PID-idx#PID-idx#PID-idx
                 recRep = recRep.split('#') #[PID-idx, PID-idx, PID-idx]
                 record = []
                 for page in recRep:
-                    page = page.split('-') #[PID, idx]
-                    page = tuple(page[0], int(page[1]))
+                    page = page.rsplit('-', 1) #[PID, idx]
+                    page[1] = int(page[1])
+                    page = tuple(page)
+                    
                     record.append(page)
                 record = tuple(record)
                 self.pkl_index[key].append(record)
         
-        #Step-02: Build vk from string rep
-        vkRep = vkRep[:-1].split('@') #[<value>:<version>#<key>#<key>#...#<key>|<version>...,<value>..., ...]
-        self.vk_index = []
-        for colRep in vkRep: #colRep -> <value>:<version>#<key>#<key>#...#<key>|<version>...,<value>...
-            column = {}
-            for valRep in colRep.split(','): #valRep -> [<value>:<version>#<key>#<key>#...#<key>|<version>..., ...]
-                valRep = valRep.split(':') #[<value>, <version>#<key>#<key>#...#<key>|<version>...]
-                value = valRep[0]
-                column[value] = {}
-                for verRep in valRep[1].split('|'): #[<version>#<key>#<key>#...#<key>, <version>...]
-                    verRep = verRep.split('#') # [<version>, <key>, <key>, ..., <key>]
-                    column[int(verRep[0])] = verRep[1:]
-            self.vk_index.append(column)
+        # #Step-02: Build vk from string rep
+        # vkRep = vkRep[:-1].split('@') #[<value>:<version>#<key>#<key>#...#<key>|<version>...,<value>..., ...]
+        # self.vk_index = []
+        # for colRep in vkRep: #colRep -> <value>:<version>#<key>#<key>#...#<key>|<version>...,<value>...
+        #     column = {}
+        #     for valRep in colRep.split(','): #valRep -> [<value>:<version>#<key>#<key>#...#<key>|<version>..., ...]
+        #         valRep = valRep.split(':') #[<value>, <version>#<key>#<key>#...#<key>|<version>...]
+        #         value = valRep[0]
+        #         column[value] = {}
+        #         for verRep in valRep[1].split('|'): #[<version>#<key>#<key>#...#<key>, <version>...]
+        #             verRep = verRep.split('#') # [<version>, <key>, <key>, ..., <key>]
+        #             column[int(verRep[0])] = verRep[1:]
+        #     self.vk_index.append(column)
         
     def getLoc(self, primaryKey, recordIdx):
         return self.pkl_index[primaryKey][recordIdx]

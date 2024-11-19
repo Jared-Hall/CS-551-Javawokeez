@@ -78,7 +78,7 @@ class Database():
     :param key: int             #Index of table key in columns
     """
     def create_table(self, name, num_columns, key_index):
-        bufferpool = BufferPool(num_columns, 1*num_columns)
+        bufferpool = BufferPool(num_columns, 10*num_columns)
         table = Table(name, num_columns, key_index, bufferpool, self.path)
         self.tables[name] = table #Store the table
         return table
@@ -101,7 +101,7 @@ class Database():
     def get_table(self, name):
         numColumns = 0
         with open(f"{self.path}/{name}/{name}.meta", "r") as file:
-            numColumns = (file.readline().strip('\n'))
+            numColumns = int(file.readline().strip('\n'))
             key = int(file.readline())
         table = self.create_table(name, numColumns, key)
         table.load()
@@ -188,41 +188,41 @@ class BufferPool:
         Outputs:
             Returns the page ID of the created page
         """
-        ##print(f"        [BufferPool.createPage] createPage called making a new page for column: {columnIdx}!") 
+        #print(f"        [BufferPool.createPage] createPage called making a new page for column: {columnIdx}!") 
         PID = "P-" + str(self.pageCount)
-        ##print(f"        [BufferPool.createPage] PID: {PID} - Creating new page object!")
+        #print(f"        [BufferPool.createPage] PID: {PID} - Creating new page object!")
         page = Page(PID, self.path)
-        ##print(f"        [BufferPool.createPage] page created! page.pageID: {page.pageID}")
-        ##print(f"        [BufferPool.createPage] Saving initial version of the page!")
+        #print(f"        [BufferPool.createPage] page created! page.pageID: {page.pageID}")
+        #print(f"        [BufferPool.createPage] Saving initial version of the page!")
         page.save("-partial") #initial save to create the files
-        ##print(f"        [BufferPool.createPage] Page Saved! Adding new entry into the pageDirectory!")
+        #print(f"        [BufferPool.createPage] Page Saved! Adding new entry into the pageDirectory!")
         entry = (0, 1, columnIdx, len(self.colMemPartial[columnIdx]))
-        ##print(f"        [BufferPool.createPage] New entry: {entry}")
+        #print(f"        [BufferPool.createPage] New entry: {entry}")
         self.pageDirectory[PID] = entry
-        ##print(f"        [BufferPool.createPage] Adding new page to memory!")
-        ##print(f"        [BufferPool.createPage] Memory buffer pre-append: {self.colMemPartial}")
-        ##print(f"        [BufferPool.createPage] Column pages: {self.colMemPartial[columnIdx]}")
+        #print(f"        [BufferPool.createPage] Adding new page to memory!")
+        #print(f"        [BufferPool.createPage] Memory buffer pre-append: {self.colMemPartial}")
+        #print(f"        [BufferPool.createPage] Column pages: {self.colMemPartial[columnIdx]}")
         self.colMemPartial[columnIdx].append(page)
-        ##print(f"        [BufferPool.createPage] Updated memory: {self.colMemPartial}")
+        #print(f"        [BufferPool.createPage] Updated memory: {self.colMemPartial}")
         self.pageCount += 1
-        ##print(f"        [BufferPool.createPage] pageCount: {self.pageCount}")
+        #print(f"        [BufferPool.createPage] pageCount: {self.pageCount}")
         self.numPages += 1
-        ##print(f"        [BufferPool.createPage] numPages: {self.numPages}")
-        ##print(f"        [BufferPool.createPage] Complete! returning page reference: {page.pageID}")
+        #print(f"        [BufferPool.createPage] numPages: {self.numPages}")
+        #print(f"        [BufferPool.createPage] Complete! returning page reference: {page.pageID}")
         return page
     
     def getPage(self, PID="Default", columnIdx=-1):
-        ##print(f"    [BufferPool.getPage] getPage called with PID: {PID} - columnIdx: {columnIdx}")
+        #print(f"    [BufferPool.getPage] getPage called with PID: {PID} - columnIdx: {columnIdx}")
         ret = None
-        ##print(f"    [BufferPool.getPage] Checking if the pageID exists in memory...")
+        #print(f"    [BufferPool.getPage] Checking if the pageID exists in memory...")
         if(PID in self.pageDirectory): #if page exists
             #print(f"    [BufferPool.getPage] The page with ID: {PID} exists! Fetching the page directory entry...")
             index = self.pageDirectory[PID]
             #print(f"    [BufferPool.getPage] Complete! index: {index}")
-            ##print(f"    [BufferPool.getPage] Checking if the page is in memory...")
+            #print(f"    [BufferPool.getPage] Checking if the page is in memory...")
             if(index[1]): #if page in memory then return the page reference
                 #print(f"    [BufferPool.getPage] Page {PID} in memory. index[1]: {index[1]}")
-                ##print(f"    [BufferPool.getPage] Checking if page is full...")
+                #print(f"    [BufferPool.getPage] Checking if page is full...")
                 if(index[0]): #returning a full page
                     #print(f"    [BufferPool.getPage] Page is full! index[0]: {index[0]}")
                     #print(f"    [BufferPool.getPage] Fetching page from colMemFull at column: {index[2]} - {index[3]}")
@@ -234,45 +234,55 @@ class BufferPool:
                     #print(f"    [BufferPool.getPage] Got page {ret.pageID}!")
                 else:
                     #print(f"    [BufferPool.getPage] Page is partial! index[0]: {index[0]}")
-                    ##print(f"    [BufferPool.getPage] Fetching partial page from memory! column: {index[2]} - pageIdx:{index[3]}")
-                    ret = self.colMemPartial[index[2]][index[3]]
+                    #print(f"    [BufferPool.getPage] Fetching partial page from memory! column: {index[2]} - pageIdx:{index[3]}")
+                    for page in self.colMemPartial[index[2]]:
+                        if page.pageID == PID: 
+                            ret = page 
                     #print(f"    [BufferPool.getPage] Got page: {ret.pageID}")
             else: #else the page is in disk
                 #print(f"    [BufferPool.getPage] The page is not in memory! Checking the disk...")
-                ##print(f"    [BufferPool.getPage] Checking if we have space to load a page: {self.numPages < self.capacity}")
+                #print(f"    [BufferPool.getPage] Checking if we have space to load a page: {self.numPages < self.capacity}")
                 if(self.numPages < self.capacity): #if we have space then load the page
-                    ##print(f"    [BufferPool.getPage] We have space in the bufferpool. Loading page: {PID}")
+                    #print(f"    [BufferPool.getPage] We have space in the bufferpool. Loading page: {PID}")
                     self.loadPage(PID)
-                    ##print(f"    [BufferPool.getPage] Page loaded into memory!")
+                    #print(f"    [BufferPool.getPage] Page loaded into memory!")
                     self.numPages += 1
-                    ##print(f"    [BufferPool.getPage] numPages: {self.numPages}. Getting new index object...")
+                    #print(f"    [BufferPool.getPage] numPages: {self.numPages}. Getting new index object...")
                     index = self.pageDirectory[PID] #new index post load
                     #print(f"    [BufferPool.getPage] index: {index}")
                     if(index[0]): #returning a full page
-                        ##print(f"    [BufferPool.getPage] The page is full after load! Returning a reference to the full page!")
-                        ret = self.colMemFull[index[2]][index[3]]
+                        #print(f"    [BufferPool.getPage] The page is full after load! Returning a reference to the full page!")
+                        for page in self.colMemFull[index[2]]:
+                            if page.pageID == PID: 
+                                ret = page 
                         #print(f"    [BufferPool.getPage] returning page: {ret.pageID}")
                     else:
                         #print(f"    [BufferPool.getPage] Returning a partial page after load!")
-                        ret = self.colMemPartial[index[2]][index[3]]
+                        for page in self.colMemPartial[index[2]]:
+                            if page.pageID == PID: 
+                                ret = page 
                         #print(f"    [BufferPool.getPage] partial: {ret.pageID}")
                 else: #We don't have space so evict the page then load the new page
-                    ##print(f"    [BufferPool.getPage] No space for new pages. Evicting page!")
+                    #print(f"    [BufferPool.getPage] No space for new pages. Evicting page!")
                     self.evict()
                     #print(f"    [BufferPool.getPage] Pages evicted! We now have more space. loading new page: {PID}")
                     self.loadPage(PID)
-                    ##print(f"    [BufferPool.getPage] page Loaded!")
+                    #print(f"    [BufferPool.getPage] page Loaded!")
                     self.numPages += 1
-                    ##print(f"    [BufferPool.getPage] numPages: {self.numPages}")
+                    #print(f"    [BufferPool.getPage] numPages: {self.numPages}")
                     index = self.pageDirectory[PID] #new index post load
-                    ##print(f"    [BufferPool.getPage] New index after load: {index}")
+                    #print(f"    [BufferPool.getPage] New index after load: {index}")
                     if(index[0]): #returning a full page
-                        ##print(f"    [BufferPool.getPage] This is a full page!")
-                        ret = self.colMemFull[index[2]][index[3]]
-                        ##print(f"    [BufferPool.getPage] returning full page: {ret.pageID}")
+                        #print(f"    [BufferPool.getPage] This is a full page!")
+                        for page in self.colMemFull[index[2]]:
+                            if page.pageID == PID: 
+                                ret = page 
+                        #print(f"    [BufferPool.getPage] returning full page: {ret.pageID}")
                     else:
                         #print(f"    [BufferPool.getPage] Returning partial page...")
-                        ret = self.colMemPartial[index[2]][index[3]]
+                        for page in self.colMemFull[index[2]]:
+                            if page.pageID == PID: 
+                                ret = page 
                         #print(f"    [BufferPool.getPage] Returning page: {ret.pageID}")
         else: #page doesn't exist so create a new page and return it's reference.
             #print(f"    [BufferPool.getPage] no pages found for id: {PID}")
@@ -336,7 +346,7 @@ class BufferPool:
                 else:
                     page = self.colMemPartial[index[2]].pop(index[3])
                     page.save("-partial")
-                    index = (1, 0, index[2], len(self.colDiskFull))
+                    index = (0, 0, index[2], len(self.colDiskFull))
                     self.colDiskPartial[index[2]].append(page.pageID)
                     self.pageDirectory[PID] = index
             else:
