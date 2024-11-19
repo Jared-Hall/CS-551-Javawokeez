@@ -136,7 +136,7 @@ class Page:
         index = self.availableOffsets.pop(0)
         print(f"    [Page.write] index: {index} - Length of offsets: {len(self.availableOffsets)}")
         print(f"    [Page.write] Slice in data array we are writing to: {index}-{index+8}")
-        data = str(value).encode('utf-8')
+        data = str(value).rjust(8, '-').encode('utf-8')
         print(f"    [Page.write] Value(raw): {value} - value(str): {str(value)} - Encoded value: {data}")
         print(f"    [Page.write] Data in array before writing: {self.data[index : (index + 8)]}") 
         self.data[index : (index + 8)] = data
@@ -154,8 +154,8 @@ class Page:
         print(f"    [Page.read] Read Called with index: {index}")
         print(f"    [Page.read] The data slice we are reading from: {self.data[index : (index+8)]}")
         data = self.data[index : (index+8)]
-        print(f"    [Page.read] data(raw): {data} - decoded: {data.decode("utf-8")}" )
-        return data.decode('utf-8')
+        print(f"    [Page.read] data(raw): {data} - decoded: {data.decode("utf-8")} - trimmed: {data.decode("utf-8").replace('-', '')}" )
+        return data.decode('utf-8').replace('-', '')
 
     def remove(self, index):
         """

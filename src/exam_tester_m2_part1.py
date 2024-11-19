@@ -33,18 +33,21 @@ keys = sorted(list(records.keys()))
 print("Insert finished")
 
 # Check inserted records using select query
+print(f"[Tester.main] Starting select tests...")
 for key in keys:
+    print(f"[Tester.main] Calling select on key: {key}")
     record = query.select(key, 0, [1, 1, 1, 1, 1])[0]
+    print(f"[Tester.main] Got record: {record.key}")
     error = False
+    print(f"[Tester.main] Checking record...")
     for i, column in enumerate(record.columns):
+        print(f"[Tester.main] Your Column: {column} - Expected: {records[key][i]}")
         if column != records[key][i]:
+            print(f"[Tester.main] ERROR")
+            input(">> press enter to continue.")
             error = True
     if error:
         print('select error on', key, ':', record, ', correct:', records[key])
-        input()
-    else:
-        pass
-        # print('select on', key, ':', record)
 print("Select finished")
 
 # x update on every column

@@ -33,43 +33,63 @@ keys = sorted(list(records.keys()))
 print("Insert finished")
 
 # Check inserted records using select query
+print(f"\n\n[Tester.main] Starting select tests...")
 for key in keys:
+    print(f"[Tester.main] Calling select on key: {key}")
     record = query.select(key, 0, [1, 1, 1, 1, 1])[0]
+    print(f"[Tester.main] Got record: {record.key}")
     error = False
-    print("KEY: ", key)
-    print("REC.COLUMNS: ", record.columns)
-    print("RECORD: ", records[key])
+    print(f"[Tester.main] Checking record...")
     for i, column in enumerate(record.columns):
-        print("TEST:", column, records[key][i])
+        print(f"[Tester.main] Your Column: {column} - Expected: {records[key][i]}")
         if column != records[key][i]:
-            print(column, records[key][i])
+            print(f"[Tester.main] ERROR")
+            input(">> press enter to continue.")
             error = True
-            input("error")
     if error:
         print('select error on', key, ':', record, ', correct:', records[key])
     else:
         pass
-        # print('select on', key, ':', record)
-print("Select finished")
+print(f"[Tester.main] Test complete.")
+
 
 # x update on every column
+print(f"[Tester.main] Starting update tests")
 for _ in range(number_of_updates):
+    print(f"[Tester.main] ")
+    print(f"[Tester.main] ")
     for key in keys:
+        print(f"[Tester.main] ")
         updated_columns = [None, None, None, None, None]
+        print(f"[Tester.main] ")
+        print(f"[Tester.main] ")
         for i in range(2, grades_table.num_columns):
+            print(f"[Tester.main] ")
             # updated value
-         
+            print(f"[Tester.main] ")
             value = randint(0, 20)
+            print(f"[Tester.main] ")
             updated_columns[i] = value
+            print(f"[Tester.main] ")
             # copy record to check
             original = records[key].copy()
+            print(f"[Tester.main] ")
             # update our test directory
             records[key][i] = value
+            print(f"[Tester.main] ")
+            print(f"[Tester.main] ")
             query.update(key, *updated_columns)
+            print(f"[Tester.main] ")
             record = query.select(key, 0, [1, 1, 1, 1, 1])[0]
+            print(f"[Tester.main] ")
             error = False
+            print(f"[Tester.main] ")
             for j, column in enumerate(record.columns):
+                print(f"[Tester.main] ")
                 if column != records[key][j]:
+                    print(f"[Tester.main] ")
+                    print(f"[Tester.main] ")
+                    input(">>> ERROR: Continue?")
                     error = True
             if error:
                 print('update error on', original, 'and', updated_columns, ':', record, ', correct:', records[key])

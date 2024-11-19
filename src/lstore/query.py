@@ -1,6 +1,41 @@
 from lstore.table import Table, Record
 from lstore.index import Index
 
+"""
+select_version: 
+return list of relative version record objects with search_key at search_key_index. only return columns with 1 
+final = [] 
+for page in memory-full, memory-partial[search_key_index]:              #LOOP THROUGH ALL PAGES IN MEMORY (PARTIAL AND FULL)
+    if page.ValueIndex[search_key]:                                     #IF THE VALUE IS IN THE PAGE
+        for key,ver in page.ValueIndex[search_key]:                     #LOOP THROUGH THE KEYS THAT HAVE THAT VALUE 
+            relative = ver - len(key_locations[key]                     #ABSOLUTE VERSION - numVersions = relative version 
+            if relative_version == relative:                            #IF RELATIVE VERSION OF RECORD IS DESIRED 
+                columnsToAppend = []
+                for i in numCols:                                       #LOOP THROUGH THE COLUMNS 
+                    if projected_columns_index[i] == 1:                 #IF WE WANT TO RETURN THIS COLUMN 
+                        data = key_locations[key][relative][i].read()   #READ THE VALUE FOR THE RELATIVE VERSION OF COLUMN
+                        columnsToAppend.append(data)                    #APPEND THE COLUMN DATA TO THE COLUMNS TO RETURN 
+                        record = Record(columnsToAppend)                #CREATE A RECORD OBJECT WITH DESIRED COLUMNS 
+                final.append(record)                                    #APPEND TO LIST OF RECORD OBJECTS 
+
+            
+for page in disk-full, disk-partial[search_key_index]:                  #LOOP THROUGH ALL PAGES IN DISK (FULL OR PARTIAL)
+    getPageByID(PID)                                                    #GET THE PAGE FROM DISK, THIS CALLS THE EVICTION POLICY 
+    if page.ValueIndex[search_key]:                                     #IF THE PAGE CONTAINS THE VALUE 
+        for key,ver in page.ValueIndex[search_key]:                     #LOOP THROUGH THE KEYS WITH THAT VALUE
+            relative = ver - len(key_locations[key]                     #ABSOLUTE VERSION - numVersions = relative version 
+            if relative_version == relative:                            #IF RELATIVE VERSION OF RECORD IS DESIRED 
+                columnsToAppend = []
+                for i in numCols:                                       #LOOP THROUGH COLUMNS
+                    if projected_columns_index[i] == 1:                 #IF WE WANT TO RETURN THIS COLUMN 
+                        data = key_locations[key][relative][i].read()   #READ THE DATA FOR RELATIVE VERSION OF THAT COLUMN
+                        columnsToAppend.append(data)                    #APPEND IT 
+                        record = Record(columnsToAppend)                #CREATE RECORD OBJECT
+                final.append(record) 
+
+return final                                                            #RETURN LIST OF RECORD OBJECTS 
+"""
+
 
 class Query:
     """
@@ -31,7 +66,6 @@ class Query:
     # Returns False if insert fails for whatever reason
     """
     def insert(self, *columns):
-        schema_encoding = '0' * self.table.num_columns
         self.table.insert(columns)
         
 
@@ -46,78 +80,12 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
-        final = self.select_version(search_key, search_key_index, projected_columns_index, -1) 
+        print(f"\n\n[Query.select] Select called. See input params below:")
+        print(f"[Query.select] search_key: {search_key} - search_key_index: {search_key_index} - projected_columns_index: {projected_columns_index}")
+        print(f"[Query.select] Calling select version on the latest record version")
+        final = self.select_version(search_key, search_key_index, projected_columns_index, -1)
+        print(f"[Query.select] Returning: {final}") 
         return final
-
-        """
-        select: 
-        return list of latest tail record objects with search_key at search_key_index. only return columns with 1 
-        final = [] 
-        for page in memory-full, memory-partial[search_key_index]:              #LOOP THROUGH ALL PAGES IN MEMORY (PARTIAL AND FULL)
-            if page.ValueIndex[search_key]:                                     #IF THE VALUE IS IN THE PAGE
-                for key,ver in page.ValueIndex[search_key]:                     #LOOP THROUGH THE KEYS THAT HAVE THAT VALUE 
-                    if ver == (len(key_locations[key]) - 1):                          #IF THE ABSOLUTE VER=LEN(RECORDS) THEN VALUE IS LATEST VALUE FOR TAIL RECORD
-                        columnsToAppend = []
-                        for i in numCols:                                       #LOOP THROUGH THE COLUMNS 
-                            if projected_columns_index[i] == 1:                 #IF WE WANT TO RETURN THIS COLUMN 
-                                data = key_locations[key][-1][i].read()         #READ THE VALUE FOR THE LATEST TAIL RECORD FOR THAT COLUMN 
-                                columnsToAppend.append(data)                    #APPEND THE COLUMN DATA TO THE COLUMNS TO RETURN 
-                                record = Record(columnsToAppend)                #CREATE A RECORD OBJECT WITH DESIRED COLUMNS 
-                        final.append(record)                                    #APPEND TO LIST OF RECORD OBJECTS 
-
-                    
-        for page in disk-full, disk-partial[search_key_index]:                  #LOOP THROUGH ALL PAGES IN DISK (FULL OR PARTIAL)
-            getPageByID(PID)                                                    #GET THE PAGE FROM DISK, THIS CALLS THE EVICTION POLICY 
-            if page.ValueIndex[search_key]:                                     #IF THE PAGE CONTAINS THE VALUE 
-                for key,ver in page.ValueIndex[search_key]:                     #LOOP THROUGH THE KEYS WITH THAT VALUE
-                    if ver == (len(key_locations[key]) - 1):                          #IF THE VERSION IS LATEST TAIL RECORD
-                        columnsToAppend = []
-                        for i in numCols:                                       #LOOP THROUGH COLUMNS
-                            if projected_columns_index[i] == 1:                 #IF WE WANT TO RETURN THIS COLUMN 
-                                data = key_locations[key][-1][i].read()         #READ THE DATA FOR THAT COLUMN FROM LATEST TAIL RECORD 
-                                columnsToAppend.append(data)                    #APPEND IT 
-                                record = Record(columnsToAppend)                #CREATE RECORD OBJECT
-                        final.append(record) 
-
-        return final                                                            #RETURN LIST OF RECORD OBJECTS 
-        
-        
-        
-        """
-        # print(self.table.key_rid)
-        record_locations = self.table.key_rid[search_key]  
-        #print("LOCS: ", record_locations) 
-        #for rid in record_locations:
-            #print(rid in self.table.tp_directory)
-        columnsToReturn = []
-        if record_locations[0] in self.table.tp_directory:
-            for record in self.table.tp_directory[record_locations[0]]:
-                #columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))
-                columnsToReturn.insert(0, record.getRecord())
-                # if search_key == 92107415:
-                # print("")
-            columnsToReturn.append(self.table.bp_directory[record_locations[0]].getRecord())
-
-        else:            
-            #columnsToReturn.append(self.FilterColumns(self.table.bp_directory[record_locations[0]].columns, projected_columns_index)) 
-            columnsToReturn.append(self.table.bp_directory[record_locations[0]].getRecord())
-            #print(record)
-        
-        return columnsToReturn
-        """
-        Select all records where column[search_key_index] = search_key        
-        record_locations = self.table.index.locate(search_key, search_key_index)
-       
-         Assuming record_locations is an array of rids:
-        
-        for rid in record_locations:            
-            record = self.table.bp_directory[rid]
-            if record != None:                
-                columnsToReturn.append(self.FilterColumns(record.columns, projected_columns_index))
-
-        return columnsToReturn
-        """
-        
     
     """
     # Read matching record with specified search key
@@ -130,57 +98,29 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
-            print("INDEX: ", search_key, self.table.index.pkl_index[search_key])
+            print(f"\n[Query.select_version] Select version called. See input params below:")
+            print(f"[Query.select_version] search_key: {search_key} - search_key_index: {search_key_index} - projected_columns_index: {projected_columns_index} - relative_version: {relative_version}")
             colToReturn = []
-            for loc in self.table.index.pkl_index[search_key][relative_version]:
-                print(loc[0])
-                page = self.table.bufferPool.getPage(loc[0])
-                data = page.read(loc[1])
-                colToReturn.append(int(data))
-            
-            print(colToReturn)
-            return [Record(search_key, colToReturn)]
-                   
-
-                    
-            """
-        select_version: 
-        return list of relative version record objects with search_key at search_key_index. only return columns with 1 
-        final = [] 
-        for page in memory-full, memory-partial[search_key_index]:              #LOOP THROUGH ALL PAGES IN MEMORY (PARTIAL AND FULL)
-            if page.ValueIndex[search_key]:                                     #IF THE VALUE IS IN THE PAGE
-                for key,ver in page.ValueIndex[search_key]:                     #LOOP THROUGH THE KEYS THAT HAVE THAT VALUE 
-                    relative = ver - len(key_locations[key]                     #ABSOLUTE VERSION - numVersions = relative version 
-                    if relative_version == relative:                            #IF RELATIVE VERSION OF RECORD IS DESIRED 
-                        columnsToAppend = []
-                        for i in numCols:                                       #LOOP THROUGH THE COLUMNS 
-                            if projected_columns_index[i] == 1:                 #IF WE WANT TO RETURN THIS COLUMN 
-                                data = key_locations[key][relative][i].read()   #READ THE VALUE FOR THE RELATIVE VERSION OF COLUMN
-                                columnsToAppend.append(data)                    #APPEND THE COLUMN DATA TO THE COLUMNS TO RETURN 
-                                record = Record(columnsToAppend)                #CREATE A RECORD OBJECT WITH DESIRED COLUMNS 
-                        final.append(record)                                    #APPEND TO LIST OF RECORD OBJECTS 
-
-                    
-        for page in disk-full, disk-partial[search_key_index]:                  #LOOP THROUGH ALL PAGES IN DISK (FULL OR PARTIAL)
-            getPageByID(PID)                                                    #GET THE PAGE FROM DISK, THIS CALLS THE EVICTION POLICY 
-            if page.ValueIndex[search_key]:                                     #IF THE PAGE CONTAINS THE VALUE 
-                for key,ver in page.ValueIndex[search_key]:                     #LOOP THROUGH THE KEYS WITH THAT VALUE
-                    relative = ver - len(key_locations[key]                     #ABSOLUTE VERSION - numVersions = relative version 
-                    if relative_version == relative:                            #IF RELATIVE VERSION OF RECORD IS DESIRED 
-                        columnsToAppend = []
-                        for i in numCols:                                       #LOOP THROUGH COLUMNS
-                            if projected_columns_index[i] == 1:                 #IF WE WANT TO RETURN THIS COLUMN 
-                                data = key_locations[key][relative][i].read()   #READ THE DATA FOR RELATIVE VERSION OF THAT COLUMN
-                                columnsToAppend.append(data)                    #APPEND IT 
-                                record = Record(columnsToAppend)                #CREATE RECORD OBJECT
-                        final.append(record) 
-
-        return final                                                            #RETURN LIST OF RECORD OBJECTS 
-        
-        
-        
-     """
-
+            retVal = []
+            print(f"[Query.select_version] Checking if we are searching using the primary key...")
+            if(search_key_index == 0): #we are searching using the primary key 
+                print(f"[Query.select_version] Searching for records with the primary key: {search_key}")
+                record = self.table.index.pkl_index[search_key]
+                print(f"[Query.select_version] Records found with this key: {record}")
+                record = record[relative_version]
+                print(f"[Query.select_version] Fetching version the {relative_version} tail record: {record}")
+                print(f"[Query.select_version] looping through the locations in the record...")
+                for location in record:
+                    print(f"[Query.select_version] Location: {location}. Getting page with PID: {location[0]}...")
+                    page = self.table.bufferPool.getPage(location[0])
+                    print(f"[Query.select_version] Found page: {page.pageID}! Reading data from the page...")
+                    data = page.read(location[1])
+                    print(f"[Query.select_version] Got data! raw: {data} - type: {type(data)} - int: {int(data)}! Appending to return record...")
+                    colToReturn.append(int(data))
+                    print(f"[Query.select_version] data added. Continuing...")
+            retVal.append(Record(search_key, self.FilterColumns(colToReturn, projected_columns_index)))
+            print(f"[Query.select_version] Select version done! Returning: {retVal}")
+            return retVal
 
     def FilterColumns(self, columns, projected_columns_index):
         columnsToReturn = []
@@ -224,41 +164,6 @@ class Query:
             location = self.key_rid[key][-1]
             summationResult += self.bufferpool.getPageByID(location[aggregate_column_index][0]).read(location[aggregate_column_index][1]) 
         return summationResult 
-
-
-
-        summationResult = 0
-        keys = [start_range + i for i in range((end_range - start_range) + 1)] 
-        record_locations = []
-        for key in keys: 
-            if key in self.table.key_rid:
-                record_locations.append(self.table.key_rid[key][0])
-        #record_locations = [self.table.key_rid[key][0] for key in keys]
-        for rid in record_locations:
-            if rid in self.table.tp_directory: 
-                # summationResult += self.table.tp_directory[rid][-1].columns[aggregate_column_index] 
-                summationResult += self.table.tp_directory[rid][-1].getColumnValue(aggregate_column_index)
-            
-            else:
-                #print(self.table.bp_directory[rid].columns, self.table.bp_directory[rid].columns[0])
-                # summationResult += self.table.bp_directory[rid].columns[aggregate_column_index]
-                
-                summationResult += self.table.bp_directory[rid].getColumnValue(aggregate_column_index)
-        if len(record_locations) == 0:
-            return False
-        return summationResult
-      
-        """
-        record_locations = self.table.index.locate_range(start_range, end_range, 0)
-        for rid in record_locations:
-            latestRecord  = self.table.bp_directory[rid]
-            if rid in self.table.tp_directory and len(self.table.tp_directory[rid]) > 0: 
-                latestRecord = self.table.tp_directory[rid][len(self.table.tp_directory[rid]) - 1]
-            
-            summationResult += latestRecord.columns[aggregate_column_index]
-        return summationResult
-        """
-
     
     """
     :param start_range: int         # Start of the key range to aggregate 
@@ -287,19 +192,6 @@ class Query:
             summationResult += self.bufferpool.getPageByID(location[aggregate_column_index][0]).read() 
         return summationResult 
 
-
-
-        summationResult = 0
-        for key in range(start_range, end_range + 1):
-            # record = self.select_version(key, 0, [1 * self.table.num_columns], relative_version)
-            # if(record != False):            
-                # summationResult +=# record[0].columns[aggregate_column_index]
-            value = self.GetVersionColumnValue(key, relative_version, aggregate_column_index)
-            if value != False:
-                summationResult += self.GetVersionColumnValue(key, relative_version, aggregate_column_index)
-        return summationResult
-
-
     def GetVersionColumnValue(self, search_key, relative_version, columnIndex):
         try:
             record_locations = self.table.key_rid[search_key] 
@@ -319,27 +211,6 @@ class Query:
         except:
             return False
         pass
-
-
-
-
-        """
-        record_locations = self.table.index.locate_range(start_range, end_range, 0)
-        
-        if len(record_locations) == 0:
-            return False
-        
-     
-        
-        for rid in record_locations:
-            relativeRecord  = self.table.bp_directory[rid]
-            if rid not in self.table.tp_directory or len(self.table.tp_directory[rid]) < relative_version:
-                return False
-            
-            relativeRecord = self.table.tp_directory[rid][len(self.table.tp_directory[rid]) - relative_version - 1]
-            summationResult += relativeRecord.columns[aggregate_column_index]
-
-        return summationResult"""
 
     
     """
