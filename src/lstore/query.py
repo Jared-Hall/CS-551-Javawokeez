@@ -67,6 +67,7 @@ class Query:
     """
     def insert(self, *columns):
         self.table.insert(columns)
+        input(">>> Continue?")
         
 
     

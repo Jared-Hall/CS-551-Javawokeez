@@ -267,21 +267,7 @@ class Table:
                 
             pkl_str = file.readline()   
             vk_str = file.readline() 
-            self.index.load(pkl_str, vk_str) 
-
-        
-
-                
-
-
-            
-        
-
-               
-        
-       
-    
-    
+            self.index.load(pkl_str, vk_str)
 
     def __merge(self):
         #print("merge is happening")
@@ -292,9 +278,6 @@ class Table:
                 for loc in [loc1, loc2, loc3, loc4, loc5]:
                     lock loc 
                     delete loc 
-
-        
-        
         """
         for key in self.key_rid: 
             deletedUpdates = self.key_rid[key][:-1] 
