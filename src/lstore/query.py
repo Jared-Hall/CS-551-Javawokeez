@@ -112,11 +112,11 @@ class Query:
                 #print(f"[Query.select_version] Fetching version the {relative_version} tail record: {record}")
                 #print(f"[Query.select_version] looping through the locations in the record...")
                 for location in record:
-                    print(f"[Query.select_version] Location: {location}. Getting page with PID: {location[0]}...")
+                    #print(f"[Query.select_version] Location: {location}. Getting page with PID: {location[0]}...")
                     page = self.table.bufferPool.getPage(location[0])
-                    print(f"[Query.select_version] Found page: {page.pageID}! Reading data from the page...")
+                    #print(f"[Query.select_version] Found page: {page.pageID}! Reading data from the page...")
                     data = page.read(location[1])
-                    print(f"[Query.select_version] Got data! raw: {data} - type: {type(data)} - int: {int(data)}! Appending to return record...")
+                    #print(f"[Query.select_version] Got data! raw: {data} - type: {type(data)} - int: {int(data)}! Appending to return record...")
                     colToReturn.append(int(data))
                     #print(f"[Query.select_version] data added. Continuing...")
             #colToReturn[0] = search_key
@@ -162,12 +162,13 @@ class Query:
         return summationResult 
         
         """
+    
         summationResult = 0
-        keys = [start_range + i for i in range((end_range - start_range) + 1)] 
+        keys = [start_range + i for i in range((end_range - start_range) + 1)]
         for key in keys:
-            location = self.key_rid[key][-1]
-            summationResult += self.bufferpool.getPageByID(location[aggregate_column_index][0]).read(location[aggregate_column_index][1]) 
-        return summationResult 
+            location = self.table.index.pkl_index[key][-1]
+            summationResult += int(self.table.bufferPool.getPage(location[aggregate_column_index][0], aggregate_column_index).read(location[aggregate_column_index][1]))
+        return summationResult
     
     """
     :param start_range: int         # Start of the key range to aggregate 
