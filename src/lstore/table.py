@@ -94,101 +94,97 @@ class Table:
         """
         
         
-        #print("\n\n========== Insert ==========")
-        #print(f"[Table.insert] columns: {columns}")
+        print("\n\n========== Insert ==========")
+        print(f"[Table.insert] columns: {columns}")
         record_location = [[]]*self.num_columns
-        #print(f"[Table.insert] record_location: {record_location}")
-        #print(f"[Table.insert] Looping through columns[0]: {columns[0]}")
+        print(f"[Table.insert] record_location: {record_location}")
+        print(f"[Table.insert] Looping through columns[0]: {columns[0]}")
         for i, value in enumerate(columns[0]): 
-            #print(f"[Table.insert] column i: {i} value: {value}")
+            print(f"[Table.insert] column i: {i} value: {value}")
             index = None   
-            #print(f"[Table.insert] Check if there are partial pages in bufferpool")
-            #print(f"[Table.insert] {len(self.bufferPool.colMemPartial[i]) > 0}")
+            print(f"[Table.insert] Check if there are partial pages in bufferpool")
+            print(f"[Table.insert] {len(self.bufferPool.colMemPartial[i]) > 0}")
             if(len(self.bufferPool.colMemPartial[i]) > 0):
-                #print(f"[Table.insert] There are partial pages. Fetching Page")
+                print(f"[Table.insert] There are partial pages. Fetching Page")
                 page = self.bufferPool.colMemPartial[i][0]
-                #print(f"[Table.insert] Got a partial page from memory. Page: {page.pageID}")
-                #print(f"[Table.insert] Calling page.write to write value ({value}) to page...")
+                print(f"[Table.insert] Got a partial page from memory. Page: {page.pageID}")
+                print(f"[Table.insert] Calling page.write to write value ({value}) to page...")
                 index = page.write(value)
-                #print(f"[Table.insert] Write Complete! index: {index} - number of open spots left: {len(page.availableOffsets)}")
-                #print(f"[Table.insert] Wrote: {page.data[index: (index+8)]}")
-                #print(f"[Table.insert] <debug>: reading that data from the page...") 
+                print(f"[Table.insert] Write Complete! index: {index} - number of open spots left: {len(page.availableOffsets)}")
+                print(f"[Table.insert] Wrote: {page.data[index: (index+8)]}")
+                print(f"[Table.insert] <debug>: reading that data from the page...") 
                 data = page.read(index)
                 print(f"[Table.insert] <debug>: Returned data: {data} {page.pageID} {index}")   
-                #print(f"[Table.insert] Adding (PID, idx): {(page.pageID)}, {index}") 
+                print(f"[Table.insert] Adding (PID, idx): {(page.pageID)}, {index}") 
                 record_location[i] = (page.pageID, index)
-                #print(f"[Table.insert] updated record_location: {record_location[i]}")
-                #print(f"[Table.insert] Check if the page has capacity.")
-                #print(f"[Table.insert]     page.capacity: {page.hasCapacity()} - ")            
+                print(f"[Table.insert] updated record_location: {record_location[i]}")
+                print(f"[Table.insert] Check if the page has capacity.")
+                print(f"[Table.insert]     page.capacity: {page.hasCapacity()} - ")            
                 if not page.hasCapacity():
-                    #print(f"[Table.insert] The page has no open spots. Appending to full...")                                         #IF THE PAGE IS FULL AFTER INSERT 
+                    print(f"[Table.insert] The page has no open spots. Appending to full...")                                         #IF THE PAGE IS FULL AFTER INSERT 
                     self.bufferPool.colMemFull[i].append(page)
-                    #print(f"[Table.insert] Removing page from partial mem...")  
+                    print(f"[Table.insert] Removing page from partial mem...")  
                     self.bufferPool.colMemPartial[i].remove(page)
-                    #print(f"[Table.insert] removed Page.") 
-                    l = list(self.bufferPool.pageDirectory[page.pageID]) 
-                    l[0] = 1
-                    self.bufferPool.pageDirectory[page.pageID] = tuple(l)
+                    print(f"[Table.insert] removed Page.") 
+                    index = list(self.bufferPool.pageDirectory[page.pageID]) 
+                    index[0] = 1
+                    self.bufferPool.pageDirectory[page.pageID] = tuple(index)
             else: #no partials in memory
-                #print(f"[Table.insert] No partials in memory. Checking if there is a partial page on disk...")
+                print(f"[Table.insert] No partials in memory. Checking if there is a partial page on disk...")
                 if(len(self.bufferPool.colDiskPartial[i]) > 0):
-                    #print(f"[Table.insert] Disk has a partial! Calling BP.getPage with PID: {page.pageID} - column: {i}")
+                    print(f"[Table.insert] Disk has a partial! Calling BP.getPage with PID: {page.pageID} - column: {i}")
                     page = self.bufferPool.getPage(self.bufferPool.colDiskPartial[0].pageID, i)
-                    #print(f"[Table.insert] Returned page ({page.pageID}) - writing {value}...")
+                    print(f"[Table.insert] Returned page ({page.pageID}) - writing {value}...")
                     index = page.write(value)
-                    #print(f"[Table.insert] <debug>: reading that data at index {index} from the page...") 
+                    print(f"[Table.insert] <debug>: reading that data at index {index} from the page...") 
                     data = page.read(index)
                     print(f"[Table.insert] <debug>: Returned data: {data} {page.pageID} {index}")   
-                    #print(f"[Table.insert] Adding location (PID, idx): ({(page.pageID)}, {index})") 
+                    print(f"[Table.insert] Adding location (PID, idx): ({(page.pageID)}, {index})") 
                     record_location[i] = (page.pageID, index)
-                    #print(f"[Table.insert] updated record_location: {record_location[i]}")    
-                    #print(f"[Table.insert] Checking if the page is full...")                                          
+                    print(f"[Table.insert] updated record_location: {record_location[i]}")    
+                    print(f"[Table.insert] Checking if the page is full...")                                          
                     if(not page.hasCapacity()):
-                        #print(f"[Table.insert] The page has no open spots. Appending to full...")                                         #IF THE PAGE IS FULL AFTER INSERT 
+                        print(f"[Table.insert] The page has no open spots. Appending to full...")                                         #IF THE PAGE IS FULL AFTER INSERT 
                         self.bufferPool.colMemFull[i].append(page)
-                        #print(f"[Table.insert] Removing page from partial mem...")  
+                        print(f"[Table.insert] Removing page from partial mem...")  
                         self.bufferPool.colMemPartial[i].remove(page)
-                        #print(f"[Table.insert] removed Page.")
-                        l = list(self.bufferPool.pageDirectory[page.pageID]) 
-                        l[0] = 1
-                        self.bufferPool.pageDirectory[page.pageID] = tuple(l)
+                        print(f"[Table.insert] removed Page.")
+                        index = list(self.bufferPool.pageDirectory[page.pageID]) 
+                        index[0] = 1
+                        self.bufferPool.pageDirectory[page.pageID] = tuple(index)
                 else:
-                    #print(f"[Table.insert] No partials available. Creating new page for column: {i}")
+                    print(f"[Table.insert] No partials available. Creating new page for column: {i}")
                     page = self.bufferPool.getPage(columnIdx=i)
-                    #print(f"[Table.insert] Returned page ({page.pageID}) - writing {value}...")
+                    print(f"[Table.insert] Returned page ({page.pageID}) - writing {value}...")
                     index = page.write(value)
-                    #print(f"[Table.insert] <debug>: reading that data at index {index} from the page...") 
+                    print(f"[Table.insert] <debug>: reading that data at index {index} from the page...") 
                     data = page.read(index)
                     print(f"[Table.insert] <debug>: Returned data: {data} {page.pageID} {index}")   
-                    #print(f"[Table.insert] Adding location (PID, idx): ({(page.pageID)}, {index})") 
+                    print(f"[Table.insert] Adding location (PID, idx): ({(page.pageID)}, {index})") 
                     record_location[i] = (page.pageID, index)
-                    #print(f"[Table.insert] updated record_location: {record_location[i]}. Checking if the page has capacity.")            
+                    print(f"[Table.insert] updated record_location: {record_location[i]}. Checking if the page has capacity.")            
                     if not page.hasCapacity():
-                        #print(f"[Table.insert] Page is full appending to the full list") 
+                        print(f"[Table.insert] Page is full appending to the full list") 
                         self.bufferPool.colMemFull[i].append(page)
-                        #print(f"[Table.insert] Removing page from partial list") 
+                        print(f"[Table.insert] Removing page from partial list") 
                         self.bufferPool.colMemPartial[i].remove(page)
-                        #print(f"[Table.insert] Page Removed")
-                        l = list(self.bufferPool.pageDirectory[page.pageID]) 
-                        l[0] = 1
-                        self.bufferPool.pageDirectory[page.pageID] = tuple(l)
-                    #print(f"[Table.insert] Done creating page!")
-                #print(f"[Table.insert] Done eith fetching page from memory or creating page")
-            #print(f"[Table.insert] Finished insert!")     
-        #print(f"[Table.insert] Updating PKL index with new record. ")
-        
+                        print(f"[Table.insert] Page Removed")
+                        index = list(self.bufferPool.pageDirectory[page.pageID]) 
+                        index[0] = 1
+                        self.bufferPool.pageDirectory[page.pageID] = tuple(index)
+                    print(f"[Table.insert] Done creating page!")
+                print(f"[Table.insert] Done eith fetching page from memory or creating page")
+            print(f"[Table.insert] Finished insert!")     
+        print(f"[Table.insert] Updating PKL index with new record. ")
         record_location = [(tuple([tuple(x) for x in record_location]))]
-        #print(f"[Table.insert] Record to insert: {record_location} primary key: {columns[0][0]}")
-        ##print(type(columns[0][0]))
+        print(f"[Table.insert] Record to insert: {record_location} primary key: {columns[0][0]}")
         if(int(columns[0][0]) in self.index.pkl_index):
-            #print(f"[Table.insert] Base record exists. Something is wrong since you are trying to insert a dup.")
-            print(record_location[0])
-            print(columns)
+            print(f"[Table.insert] Base record exists. Something is wrong since you are trying to insert a dup.")
             self.index.pkl_index[int(columns[0][0])].append(record_location[0])
         else:
             self.index.pkl_index[int(columns[0][0])] = record_location
-        #print(f"[Table.insert] Complete!")
-        #print("============================")
+        print(f"[Table.insert] Complete!")
+        print("============================")
         
         
           
