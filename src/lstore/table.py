@@ -92,8 +92,6 @@ class Table:
 
         key_location[columns[0][0]] = [record_location]                     #INDEX THE LOCATION OF THE BASE RECORD EX: [((P-2, 0), (P-3, 3), (P-4, 2))]
         """
-        
-        
         print("\n\n========== Insert ==========")
         print(f"[Table.insert] columns: {columns}")
         record_location = [[]]*self.num_columns
@@ -203,11 +201,11 @@ class Table:
         key_location[primary_key].append(record_location)   #APPEND TO LIST OF LOCATIONS, ONLY UPDATED COLUMNS WILL HAVE NEW LOCATION
 
         """
-        latest_update_loc = self.key_rid[primary_key][-1] 
-        page = self.bufferPool.getPageByID(latest_update_loc)
+        latest_update_loc = self.index.pkl_index[primary_key][-1] 
+        page = self.bufferPool.getPage(latest_update_loc[0])
         newColumns = []
         for i in range(self.num_columns):
-            page = self.bufferPool.getPageByID(latest_update_loc[i][0]) 
+            page = self.bufferPool.getPage(latest_update_loc[0]) 
             newColumns.append(page.read(latest_update_loc[i][1]))
         
         for i, value in enumerate(columns):
@@ -252,21 +250,7 @@ class Table:
                 
             pkl_str = file.readline()   
             vk_str = file.readline() 
-            self.index.load(pkl_str, vk_str) 
-
-        
-
-                
-
-
-            
-        
-
-               
-        
-       
-    
-    
+            self.index.load(pkl_str, vk_str)
 
     def __merge(self):
         print("merge is happening")
@@ -277,9 +261,6 @@ class Table:
                 for loc in [loc1, loc2, loc3, loc4, loc5]:
                     lock loc 
                     delete loc 
-
-        
-        
         """
         for key in self.key_rid: 
             deletedUpdates = self.key_rid[key][:-1] 
