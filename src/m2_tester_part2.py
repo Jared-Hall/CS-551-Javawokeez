@@ -39,7 +39,9 @@ for key in keys:
     error = False
     for i, column in enumerate(record.columns):
         if column != records[key][i]:
+            print(record, record.columns, column, key, records[key], records[key][i])
             error = True
+            input()
     if error:
         print('select error on', key, ':', record, ', correct:', records[key])
 print("Select finished")

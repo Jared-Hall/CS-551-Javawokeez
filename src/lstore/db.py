@@ -41,7 +41,7 @@ class Database():
 
     def __init__(self):
         self.tables = {} #Store name and tables as key:value
-        self.path = None 
+        self.path = './storage'
 
     # Not required for milestone1
     def open(self, path):

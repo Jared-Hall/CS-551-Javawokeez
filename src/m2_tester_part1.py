@@ -34,6 +34,8 @@ seed(3562901)
 for i in range(0, 100):
     key = 92106429 + i
     records[key] = [key, randint(0, 20), randint(0, 20), randint(0, 20), randint(0, 20)]
+    if key == 92106429:
+        print("INSERTING KEY: ", records[key])
     query.insert(*records[key])
 keys = sorted(list(records.keys()))
 #print("Insert finished")
@@ -86,10 +88,15 @@ for _ in range(number_of_updates):
             #print(f"[Tester.main] ")
             #print(f"[Tester.main] ")
             query.update(key, *updated_columns)
+            
+                
             #print(f"[Tester.main] ")
-            if key == 92106436:
-                t = 0
+            
             record = query.select(key, 0, [1, 1, 1, 1, 1])[0]
+            if key == 92106429:
+                print("UPDATING KEY", record.columns)
+                print("DESIRED UPDATE: ", records[key])
+                
             #print(f"[Tester.main] ")
             error = False
             #print(f"[Tester.main] ")
@@ -104,7 +111,8 @@ for _ in range(number_of_updates):
                     error = True
                 else:
                     #counter += 1 
-                    print("SUCCESSFUL UPDATE")
+                    #print("SUCCESSFUL UPDATE")
+                    pass
             if error:
                 #print('update error on', original, 'and', updated_columns, ':', record, ', correct:', records[key])
                 pass
@@ -125,4 +133,6 @@ for i in range(0, number_of_aggregates):
             pass
         # #print('sum on [', keys[r[0]], ',', keys[r[1]], ']: ', column_sum)
 #print("Aggregate finished")
+#print(type(keys[0]), keys[0])
+print("TEST: ", query.select(92106429, 0, [1, 1, 1, 1, 1])[0].columns)
 db.close()

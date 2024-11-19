@@ -53,6 +53,8 @@ for key in keys:
     for i, column in enumerate(record.columns):
         if column != records[key][i]:
             error = True
+            print(record, record.columns, key, records[key], records[key][i])
+            input()
     if error:
         print('select error on', key, ':', record, ', correct:', records[key])
 print("Select for version -2 finished")

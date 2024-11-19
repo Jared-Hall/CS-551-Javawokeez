@@ -166,8 +166,9 @@ class Query:
         summationResult = 0
         keys = [start_range + i for i in range((end_range - start_range) + 1)]
         for key in keys:
-            location = self.table.index.pkl_index[key][-1]
-            summationResult += int(self.table.bufferPool.getPage(location[aggregate_column_index][0], aggregate_column_index).read(location[aggregate_column_index][1]))
+            if key in self.table.index.pkl_index:
+                location = self.table.index.pkl_index[key][-1]
+                summationResult += int(self.table.bufferPool.getPage(location[aggregate_column_index][0], aggregate_column_index).read(location[aggregate_column_index][1]))
         return summationResult
     
     """
