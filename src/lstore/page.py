@@ -129,19 +129,19 @@ class Page:
         Outputs:
             index (int): The integer index that the data was stored at.
         """
-        print(f"    [Page.write] Page.write called! writing data to bytes array")
+        #print(f"    [Page.write] Page.write called! writing data to bytes array")
         self.LFU += 1
-        print(f"    [Page.write] First 5 offsets: {self.availableOffsets[:5]}")
-        print(f"    [Page.write] Fetching smallest available offset. Length of offsets: {len(self.availableOffsets)}")
+        #print(f"    [Page.write] First 5 offsets: {self.availableOffsets[:5]}")
+        #print(f"    [Page.write] Fetching smallest available offset. Length of offsets: {len(self.availableOffsets)}")
         index = self.availableOffsets.pop(0)
-        print(f"    [Page.write] index: {index} - Length of offsets: {len(self.availableOffsets)}")
-        print(f"    [Page.write] Slice in data array we are writing to: {index}-{index+8}")
+        #print(f"    [Page.write] index: {index} - Length of offsets: {len(self.availableOffsets)}")
+        #print(f"    [Page.write] Slice in data array we are writing to: {index}-{index+8}")
         data = str(value).rjust(8, '-').encode('utf-8')
-        print(f"    [Page.write] Value(raw): {value} - value(str): {str(value)} - Encoded value: {data}")
-        print(f"    [Page.write] Data in array before writing: {self.data[index : (index + 8)]}") 
+        #print(f"    [Page.write] Value(raw): {value} - value(str): {str(value)} - Encoded value: {data}")
+        #print(f"    [Page.write] Data in array before writing: {self.data[index : (index + 8)]}") 
         self.data[index : (index + 8)] = data
-        print(f"    [Page.write] Data in array after writing: {self.data[index : (index + 8)]}")
-        print(f"    [Page.write] Complete! Returning index: {index}")
+        #print(f"    [Page.write] Data in array after writing: {self.data[index : (index + 8)]}")
+        #print(f"    [Page.write] Complete! Returning index: {index}")
         return index
         
     def read(self, index):
@@ -151,10 +151,10 @@ class Page:
             index (int): the index of the value you wanna read.
         """
         self.LFU += 1
-        print(f"    [Page.read] Read Called with index: {index}")
-        print(f"    [Page.read] The data slice we are reading from: {self.data[index : (index+8)]}")
+        #print(f"    [Page.read] Read Called with index: {index}")
+        #print(f"    [Page.read] The data slice we are reading from: {self.data[index : (index+8)]}")
         data = self.data[index : (index+8)]
-        print(f"    [Page.read] data(raw): {data} - decoded: {data.decode("utf-8")} - trimmed: {data.decode("utf-8").replace('-', '')}" )
+        #print(f"    [Page.read] data(raw): {data} - decoded: {data.decode('utf-8')} - trimmed: {data.decode('utf-8').replace('-', '')}")
         return data.decode('utf-8').replace('-', '')
 
     def remove(self, index):

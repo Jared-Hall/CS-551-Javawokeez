@@ -81,11 +81,11 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
-        print(f"\n\n[Query.select] Select called. See input params below:")
-        print(f"[Query.select] search_key: {search_key} - search_key_index: {search_key_index} - projected_columns_index: {projected_columns_index}")
-        print(f"[Query.select] Calling select version on the latest record version")
-        final = self.select_version(search_key, search_key_index, projected_columns_index, -1)
-        print(f"[Query.select] Returning: {final}") 
+        #print(f"\n\n[Query.select] Select called. See input params below:")
+        #print(f"[Query.select] search_key: {search_key} - search_key_index: {search_key_index} - projected_columns_index: {projected_columns_index}")
+        #print(f"[Query.select] Calling select version on the latest record version")
+        final = self.select_version(search_key, 0, projected_columns_index, -1)
+        #print(f"[Query.select] Returning: {final}") 
         return final
     
     """
@@ -99,18 +99,19 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
-            print(f"\n[Query.select_version] Select version called. See input params below:")
-            print(f"[Query.select_version] search_key: {search_key} - search_key_index: {search_key_index} - projected_columns_index: {projected_columns_index} - relative_version: {relative_version}")
+            #print(f"\n[Query.select_version] Select version called. See input params below:")
+            #print(f"[Query.select_version] search_key: {search_key} - search_key_index: {search_key_index} - projected_columns_index: {projected_columns_index} - relative_version: {relative_version}")
             colToReturn = []
             retVal = []
-            print(f"[Query.select_version] Checking if we are searching using the primary key...")
+            #print(f"[Query.select_version] Checking if we are searching using the primary key...")
             if(search_key_index == 0): #we are searching using the primary key 
-                print(f"[Query.select_version] Searching for records with the primary key: {search_key}")
+                #print(f"[Query.select_version] Searching for records with the primary key: {search_key}")
                 record = self.table.index.pkl_index[search_key]
-                print(f"[Query.select_version] Records found with this key: {record}")
+                #print(f"[Query.select_version] Records found with this key: {record}")
+                #print("RECORDS TO SELECT FROM: ", self.table.index.pkl_index[search_key])
                 record = record[relative_version]
-                print(f"[Query.select_version] Fetching version the {relative_version} tail record: {record}")
-                print(f"[Query.select_version] looping through the locations in the record...")
+                #print(f"[Query.select_version] Fetching version the {relative_version} tail record: {record}")
+                #print(f"[Query.select_version] looping through the locations in the record...")
                 for location in record:
                     print(f"[Query.select_version] Location: {location}. Getting page with PID: {location[0]}...")
                     page = self.table.bufferPool.getPage(location[0])
@@ -118,9 +119,12 @@ class Query:
                     data = page.read(location[1])
                     print(f"[Query.select_version] Got data! raw: {data} - type: {type(data)} - int: {int(data)}! Appending to return record...")
                     colToReturn.append(int(data))
-                    print(f"[Query.select_version] data added. Continuing...")
+                    #print(f"[Query.select_version] data added. Continuing...")
+            #colToReturn[0] = search_key
+            if colToReturn[0] != search_key: 
+                t = 0
             retVal.append(Record(search_key, self.FilterColumns(colToReturn, projected_columns_index)))
-            print(f"[Query.select_version] Select version done! Returning: {retVal}")
+            #print(f"[Query.select_version] Select version done! Returning: {retVal}")
             return retVal
 
     def FilterColumns(self, columns, projected_columns_index):
