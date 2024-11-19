@@ -3,15 +3,21 @@ from lstore.query import Query
 
 from random import choice, randint, sample, seed
 
+print(f"[Tester.main] Testing Script ~~~Starto~~~~")
+print(f"[Tester.main] Creating new database instance...")
 db = Database()
+print(f"[Tester.main] Empty database created: {db.tables}")
 db.open('./CS451')
+print(f"[Tester.main] Path updated on open: {db.path}")
 # Create a table  with 5 columns
 #   Student Id and 4 grades
 #   The first argument is name of the table
 #   The second argument is the number of columns
 #   The third argument is determining the which columns will be primay key
 #       Here the first column would be student id and primary key
+print(f"[Tester.main] Create table...")
 grades_table = db.create_table('Grades', 5, 0)
+print(f"[Tester.main] Created table! table name: {grades_table} - numColumns: {grades_table.num_columns} - PK index: {grades_table.key}")
 
 # create a query class for the grades table
 query = Query(grades_table)
@@ -51,7 +57,8 @@ for key in keys:
     else:
         pass
 print(f"[Tester.main] Test complete.")
-
+input(">>> Proceed to next test?")
+print(f"[Tester.main] ")
 
 # x update on every column
 print(f"[Tester.main] Starting update tests")
