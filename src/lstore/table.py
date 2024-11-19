@@ -239,7 +239,7 @@ class Table:
             file.write(f"{self.num_columns}\n")
             file.write(f"{self.key}\n")
 
-            for key, value in self.bufferPool.page_directory:
+            for key, value in self.bufferPool.pageDirectory.items():
                 file.write(f"{key}:{value}\n")
             
             file.write("Index") 
