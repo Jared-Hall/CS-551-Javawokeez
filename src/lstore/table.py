@@ -45,7 +45,7 @@ class Table:
         self.num_columns = num_columns
         self.path = f"{path}/{name}/"
         self.page_directory = {}
-        self.index = Index(num_columns)
+        self.index = Index(num_columns, self)
         self.bufferPool = bufferPool
         self.bufferPool.path = self.path
 
@@ -176,12 +176,14 @@ class Table:
             #print(f"[Table.insert] Finished insert!")     
         #print(f"[Table.insert] Updating PKL index with new record. ")
         record_location = [(tuple([tuple(x) for x in record_location]))]
+       
+        
         #print(f"[Table.insert] Record to insert: {record_location} primary key: {columns[0][0]}")
-        if(int(columns[0][0]) in self.index.pkl_index):
+        if(int(columns[0][self.key]) in self.index.pkl_index):
             #print(f"[Table.insert] Base record exists. Something is wrong since you are trying to insert a dup.")
-            self.index.pkl_index[int(columns[0][0])].append(record_location[0])
+            self.index.pkl_index[int(columns[0][self.key])].append(record_location[0])
         else:
-            self.index.pkl_index[int(columns[0][0])] = record_location
+            self.index.pkl_index[int(columns[0][self.key])] = record_location
         #print(f"[Table.insert] Complete!")
         #print("============================")
         
@@ -189,12 +191,12 @@ class Table:
         for loc in self.index.pkl_index[primary_key]:
              #loc = ((pid, idx) () () ())
              for i, pid in enumerate(loc):
-                page = self.bufferPool.getPageByID(pid[0])
+                page = self.bufferPool.getPage(pid[0])
                 data = page.read(pid[1]) 
                 page.remove(pid[1]) 
-                for version in self.index.vk_index[i][data]: 
-                    if primary_key in self.index.vk_index[i][data][version]:
-                        self.index.vk_index[i][data][version].remove(primary_key)
+                #for version in self.index.vk_index[i][data]: 
+                    #if primary_key in self.index.vk_index[i][data][version]:
+                        #self.index.vk_index[i][data][version].remove(primary_key)
       
         del self.index.pkl_index[primary_key] 
 
@@ -210,6 +212,14 @@ class Table:
         key_location[primary_key].append(record_location)   #APPEND TO LIST OF LOCATIONS, ONLY UPDATED COLUMNS WILL HAVE NEW LOCATION
 
         """
+        if primary_key not in self.index.pkl_index:
+            return
+
+        if primary_key != columns[0]:
+            self.index.pkl_index[columns[0]] = self.index.pkl_index[primary_key] 
+            del self.index.pkl_index[primary_key] 
+            primary_key = columns[0]
+        
         latest_update_loc = self.index.pkl_index[primary_key][-1] 
         newColumns = []
         for i in range(self.num_columns):
@@ -278,8 +288,8 @@ class Table:
                     lock loc 
                     delete loc 
         """
-        for key in self.key_rid: 
-            deletedUpdates = self.key_rid[key][:-1] 
+        for key in self.index.pkl_index: 
+            deletedUpdates = self.self.index.pkl_index[key][:-1] 
             newLocs = [self.key_rid[key][-1]] 
             self.key_rid[key] =  newLocs 
             for loc in deletedUpdates:

@@ -56,7 +56,7 @@ class Index:
 
     """
 
-    def __init__(self, numColumns):
+    def __init__(self, numColumns, table):
         """
         Description: the constructor for the index.
         Inputs: 
@@ -64,6 +64,10 @@ class Index:
         """
         self.pkl_index = {}
         self.vk_index = [{}] * numColumns 
+        self.table = table
+
+    def create_index(self, keyIndex):
+        self.table.key = keyIndex
     
     def __repr__(self):
         """
