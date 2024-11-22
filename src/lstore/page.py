@@ -1,5 +1,8 @@
 import time
 import os
+import logging
+
+from lstore.setupLogging import *
 """
 Documentation for the page class.
 Author: Jared Hall jhall10@uoregon.edu
@@ -51,6 +54,11 @@ class Page:
                          The rate of use is calculated by taking the number of times a page has been read from or written to
                          in a fixed cycle and dividing this by a fixed time window.  
         """
+        self.log = logging.getLogger(self.__class__.__name__)
+        self.log = setupLogger(False, "DEBUG", self.log, 8)
+
+        self.log.debug(f"Params | pid: {pid} - path: {path} - capacity: {capacity} - size: {size}")
+
         self.LFU = 0
         self.pin = -1
         self.isDirty = False
@@ -62,7 +70,6 @@ class Page:
         self.path = path
         self.data = None
         self.availableOffsets = None
-
 
         
         if(type(pid) != type("str") or "P-" not in pid):
@@ -79,11 +86,16 @@ class Page:
         else:
             err = "ERROR: Parameter <capacity> must be a non-zero integer."
             raise TypeError(err)
+        
+        self.log.debug(f"Initial offset array length: {len(self.availableOffsets)} - Array: \n{self.availableOffsets}\n")
+        self.log.debug(f"Page created!")
     
     def setDirty(self):
+        self.log.debug(f"Page {self.pageID} set to 'dirty'!")
         self.isDirty = True
     
     def setClean(self):
+        self.log.debug(f"Page {self.pageID} set to 'clean'!")
         self.isDirty = False
 
     def hasCapacity(self):
@@ -94,36 +106,63 @@ class Page:
         Ouputs:
             Boolean: <True> if there is enough space, else <False>
         """
+        self.log.debug(f"Checking capacity. Number of available slots: {len(self.availableOffsets)} - conditional: {True if(len(self.availableOffsets) > 0) else False}")
         return True if(len(self.availableOffsets) > 0) else False
     
     def save(self, suffix):
         """
         Description: This method saves the page data and it's available offsets to disk.
+        Inputs: 
+            suffix (str): '-full' or '-partial'
         """
+        self.log.debug(f"Save called for page: {self.pageID}! Writing {suffix} page to disk...")
         status = True
         #Step-01: Write the page index
-        path = self.path
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(f"{self.path}{self.pageID}{suffix}.offsets", "w") as offsetFile:
-            offsetFile.write(','.join([str(x) for x in self.availableOffsets]))
-        with open(f"{self.path}{self.pageID}{suffix}.bin", "wb") as dataFile:
-            dataFile.write(bytes(self.data))
+        try:
+            path = self.path
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            self.log.debug(f"Created necessary folders given path: {self.path}")
+            self.log.debug(f"Opening writing offset file: {self.path}{self.pageID}{suffix}.offsets")
+            with open(f"{self.path}{self.pageID}{suffix}.offsets", "w") as offsetFile:
+                data = [str(x) for x in self.availableOffsets]
+                self.log.debug(f"Casting offsets to string. self.availableOffsets: {data}")
+                rep = ','.join(data)
+                self.log.debug(f"Built string representation: {rep}")
+                offsetFile.write(rep)
+                self.log.debug(f"Wrote string representation to file.")
+            self.log.debug(f"Saving offsets complete! Writing binary file: {self.path}{self.pageID}{suffix}.bin")
+            with open(f"{self.path}{self.pageID}{suffix}.bin", "wb") as dataFile:
+                self.log.debug(f"Wrote string representation to file.")
+                dataFile.write(bytes(self.data))
+            self.log.debug(f"Wrote string representation to file.")
+        except:
+            status = False
+        self.log.debug(f"Save complete! Returning: {status}")
         return status
 
     def load(self, suffix):
         """
         Description: This method loads the page (data and index) from disk.
         """
+        self.log.debug(f"Load called for page: {self.pageID}! Loading {suffix} page from disk...")
         status = True
+        self.log.debug(f"Loading data from binary file: {self.path}{self.pageID}{suffix}.bin")
         with open(f"{self.path}{self.pageID}{suffix}.bin", "rb") as dataFile:
+            self.log.debug(f"")
             self.data = bytearray(dataFile.read())
-        
+            self.log.debug(f"")
+        self.log.debug(f"")
+        self.log.debug(f"")
         if(suffix != '-full'):
+            self.log.debug(f"")
             with open(f"{self.path}{self.pageID}{suffix}.offsets", "r") as offsetFile:
+                self.log.debug(f"")
                 self.availableOffsets = [int(x) for x in offsetFile.read().split(',')]
+                self.log.debug(f"")
         else:
+            self.log.debug(f"")
             self.availableOffsets = []
-            
+        self.log.debug(f"")
         return status
 
     def write(self, value):
