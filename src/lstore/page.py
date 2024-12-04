@@ -55,7 +55,7 @@ class Page:
                          in a fixed cycle and dividing this by a fixed time window.  
         """
         self.log = logging.getLogger(self.__class__.__name__)
-        self.log = setupLogger(False, "DEBUG", self.log, 8)
+        self.log = setupLogger(False, "DEBUG", self.log, 12)
 
         self.log.debug(f"Params | pid: {pid} - path: {path} - capacity: {capacity} - size: {size}")
 
@@ -67,6 +67,7 @@ class Page:
         self.cycle = 30
 
         self.capacity = 0
+        self.entrySize = size
         self.path = path
         self.data = None
         self.availableOffsets = None
@@ -81,7 +82,7 @@ class Page:
         if(type(capacity) == type(1) and capacity > 0):
             self.data = bytearray(capacity)
             self.capacity = capacity
-            self.availableOffsets = [x for x in range(0, capacity, size)]
+            self.availableOffsets = [x for x in range(capacity-size, -size, -size)]
             self.maxEntries = capacity//size
         else:
             err = "ERROR: Parameter <capacity> must be a non-zero integer."
@@ -91,12 +92,12 @@ class Page:
         self.log.debug(f"Page created!")
     
     def setDirty(self):
-        self.log.debug(f"Page {self.pageID} set to 'dirty'!")
         self.isDirty = True
+        self.log.debug(f"Page {self.pageID} set to 'dirty'!")
     
     def setClean(self):
-        self.log.debug(f"Page {self.pageID} set to 'clean'!")
         self.isDirty = False
+        self.log.debug(f"Page {self.pageID} set to 'clean'!")
 
     def hasCapacity(self):
         """
@@ -135,8 +136,10 @@ class Page:
                 self.log.debug(f"Wrote string representation to file.")
                 dataFile.write(bytes(self.data))
             self.log.debug(f"Wrote string representation to file.")
-        except:
+        except Exception as e:
             status = False
+            self.log.error(f"ERROR: An exception occured in load: {e}")
+        self.setClean()
         self.log.debug(f"Save complete! Returning: {status}")
         return status
 
@@ -146,46 +149,71 @@ class Page:
         """
         self.log.debug(f"Load called for page: {self.pageID}! Loading {suffix} page from disk...")
         status = True
-        self.log.debug(f"Loading data from binary file: {self.path}{self.pageID}{suffix}.bin")
-        with open(f"{self.path}{self.pageID}{suffix}.bin", "rb") as dataFile:
-            self.log.debug(f"")
-            self.data = bytearray(dataFile.read())
-            self.log.debug(f"")
-        self.log.debug(f"")
-        self.log.debug(f"")
-        if(suffix != '-full'):
-            self.log.debug(f"")
-            with open(f"{self.path}{self.pageID}{suffix}.offsets", "r") as offsetFile:
-                self.log.debug(f"")
-                self.availableOffsets = [int(x) for x in offsetFile.read().split(',')]
-                self.log.debug(f"")
-        else:
-            self.log.debug(f"")
-            self.availableOffsets = []
-        self.log.debug(f"")
+        try:
+            self.log.debug(f"Loading data from binary file: {self.path}{self.pageID}{suffix}.bin")
+            with open(f"{self.path}{self.pageID}{suffix}.bin", "rb") as dataFile:
+                rawData = dataFile.read()
+                self.log.debug(f"Raw data loaded from file: {rawData}")
+                self.log.debug(f"Casting data as a bytearray...")
+                self.data = bytearray(rawData)
+                self.log.debug(f"Loaded data: {self.data}")
+            self.log.debug(f"Data file read! Loading offsets...")
+            self.log.debug(f"Checking if the page is full or partial: {'partial' if(suffix != '-full') else 'full'}")
+            if(suffix != '-full'):
+                self.log.debug(f"Loading partial pages offset array from file: {self.path}{self.pageID}{suffix}.offsets")
+                with open(f"{self.path}{self.pageID}{suffix}.offsets", "r") as offsetFile:
+                    self.log.debug(f"file opened! loading availableOffsets")
+                    self.availableOffsets = [int(x) for x in offsetFile.read().split(',')]
+                    self.log.debug(f"Offset Array: {self.availableOffsets}")
+            else:
+                self.log.debug(f"Full page! Creating an empty offset array...")
+                self.availableOffsets = []
+        except Exception as e:
+            status = False
+            self.log.error(f"ERROR: An exception occured in load: {e}")
+        self.log.debug(f"Load complete! Returning: {status}")
+        return status
+    
+    def delete(self, suffix):
+        """
+        Description: This method deletes the page (data and index) from disk.
+        """
+        status = True
+        try:
+            self.log.debug(f"Delete called! Removing page from disk...")
+            self.log.debug(f"Removing file: {self.path}{self.pageID}{suffix}.offsets")
+            os.remove(f"{self.path}{self.pageID}{suffix}.offsets")
+            self.log.debug(f"Removing file: {self.path}{self.pageID}{suffix}.bin")
+            os.remove(f"{self.path}{self.pageID}{suffix}.offsets")
+        except Exception as e:
+            status = False
+            self.log.error(f"ERROR! Encountered exception while deleting files: {e}")
+        self.log.debug(f"Remove complete! Returning: {status}")
         return status
 
     def write(self, value):
         """
-        Description: A simple write method. Will append new data to array.
+        Description: A simple write method. Will insert new data to array.
         Inputs:
             value (any): The data value to be stored. Will be encoded as a string.
         Outputs:
             index (int): The integer index that the data was stored at.
         """
-        ##print(f"    [Page.write] Page.write called! writing data to bytes array")
+        self.log.debug(f"Write called! Writing value: {value} to the pages data array.")
         self.LFU += 1
-        ##print(f"    [Page.write] First 5 offsets: {self.availableOffsets[:5]}")
-        ##print(f"    [Page.write] Fetching smallest available offset. Length of offsets: {len(self.availableOffsets)}")
-        index = self.availableOffsets.pop(0)
-        ##print(f"    [Page.write] index: {index} - Length of offsets: {len(self.availableOffsets)}")
-        ##print(f"    [Page.write] Slice in data array we are writing to: {index}-{index+8}")
-        data = str(value).rjust(8, '-').encode('utf-8')
-        ##print(f"    [Page.write] Value(raw): {value} - value(str): {str(value)} - Encoded value: {data}")
-        ##print(f"    [Page.write] Data in array before writing: {self.data[index : (index + 8)]}") 
+        self.log.debug(f"Incrementing the LFU counter: (before) {self.LFU-1} -> (current) {self.LFU}")
+        self.log.debug(f"First 5 offsets: {self.availableOffsets[:5]}")
+        self.log.debug(f"Fetching smallest available offset. Length of offsets: {len(self.availableOffsets)}")
+        index = self.availableOffsets.pop()
+        self.log.debug(f"Got offset: {index} - Length of offsets: {len(self.availableOffsets)}")
+        self.log.debug(f"Slice of the data array we are writing to: [{index}, {index+8}]")
+        data = str(value).ljust(8, '-').encode('utf-8')
+        self.log.debug(f"Value(raw): {value} - value(str): {str(value)} - Encoded value: {data}")
+        self.log.debug(f"Data in array before writing: index-1: {self.data[(index-8) : ((index-8) + 8)]} - index: {self.data[(index) : ((index) + 8)]} - index+1: {self.data[(index+8) : ((index+8) + 8)]}") 
         self.data[index : (index + 8)] = data
-        ##print(f"    [Page.write] Data in array after writing: {self.data[index : (index + 8)]}")
-        ##print(f"    [Page.write] Complete! Returning index: {index}")
+        self.log.debug(f"Data in array after writing: index-1: {self.data[(index-8) : ((index-8) + 8)]} - index: {self.data[(index) : ((index) + 8)]} - index+1: {self.data[(index+8) : ((index+8) + 8)]}") 
+        self.setDirty()
+        self.log.debug(f"Complete! Returning index: {index}")
         return index
         
     def read(self, index):
@@ -194,12 +222,16 @@ class Page:
         Inputs:
             index (int): the index of the value you wanna read.
         """
+        self.log.debug(f"Read called! Reading value in data array from position <index>: {index}")
         self.LFU += 1
-        ##print(f"    [Page.read] Read Called with index: {index}")
-        ##print(f"    [Page.read] The data slice we are reading from: {self.data[index : (index+8)]}")
+        self.log.debug(f"Incrementing the LFU counter: (before) {self.LFU-1} -> (current) {self.LFU}")
+        self.log.debug(f"Slice of the data array we are reading from: [{index}, {index+8}]")
+        self.log.debug(f"Data in array adjecent to {index}: index-1: {self.data[(index-8) : ((index-8) + 8)]} - index: {self.data[(index) : ((index) + 8)]} - index+1: {self.data[(index+8) : ((index+8) + 8)]}") 
         data = self.data[index : (index+8)]
-        ##print(f"    [Page.read] data(raw): {data} - decoded: {data.decode('utf-8')} - trimmed: {data.decode('utf-8').replace('-', '')}")
-        return data.decode('utf-8').replace('-', '')
+        self.log.debug(f"data(raw): {data} - decoded: {data.decode('utf-8')} - trimmed: {data.decode('utf-8').replace('-', '')}")
+        data = data.decode('utf-8').replace('-', '')
+        self.log.debug(f"Read complete returning data: {data}")
+        return data
 
     def remove(self, index):
         """
@@ -207,8 +239,13 @@ class Page:
         Inputs:
             index (int): the index of the value you wanna delete.
         """
+        self.log.debug(f"Remove called! Adding index to list of available offsets...")
         self.LFU += 1
+        self.log.debug(f"Incrementing the LFU counter: (before) {self.LFU-1} -> (current) {self.LFU}")
+        self.log.debug(f"Last 5 offsets before remove: {self.availableOffsets[-5:]}")
         self.availableOffsets.append(index)
+        self.log.debug(f"Last 5 offsets after remove: {self.availableOffsets[-5:]}")
+        self.setDirty()
     
     def calculateLFU(self):
         """
@@ -216,7 +253,10 @@ class Page:
         Inputs:
             index (int): the index of the value you wanna delete.
         """
+        self.log.debug(f"CalculateLFU called! Calculating the Least Frequently Used (LFU) value for this page...")
         endTime = time.time()
+        self.log.debug(f"Formula variables: #used: {self.LFU} - start time: {self.startTime} - end time: {endTime} - cycle: {self.cycle}")
         LFU = self.LFU/((self.startTime - endTime) % self.cycle)
         self.LFU = 0
+        self.log.debug(f"Complete! Returning calculated LFU: {LFU}")
         return LFU
