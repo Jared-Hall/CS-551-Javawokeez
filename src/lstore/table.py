@@ -7,6 +7,7 @@ Description:
 """
 from lstore.index import Index
 from lstore.page import Page
+import threading
 
 INDIRECTION_COLUMN = 0
 RID_COLUMN = 1
@@ -48,6 +49,8 @@ class Table:
         self.index = Index(num_columns, self)
         self.bufferPool = bufferPool
         self.bufferPool.path = self.path
+
+        self.lock = threading.Lock()
 
     def insert(self, *columns):
         """
@@ -93,6 +96,7 @@ class Table:
         key_location[columns[0][0]] = [record_location]                     #INDEX THE LOCATION OF THE BASE RECORD EX: [((P-2, 0), (P-3, 3), (P-4, 2))]
         """
 
+        self.lock.acquire()
         #print("\n\n========== Insert ==========")
         #print(f"[Table.insert] columns: {columns}")
         record_location = [[]]*self.num_columns
@@ -102,10 +106,10 @@ class Table:
             #print(f"[Table.insert] column i: {i} value: {value}")
             index = None   
             #print(f"[Table.insert] Check if there are partial pages in bufferpool")
-            #print(f"[Table.insert] {len(self.bufferPool.colMemPartial[i]) > 0}")
-            if(len(self.bufferPool.colMemPartial[i]) > 0):
+            #print(f"[Table.insert] {len(self.bufferPool.partialMemPages[i]) > 0}")
+            if(len(self.bufferPool.partialMemPages[i]) > 0):
                 #print(f"[Table.insert] There are partial pages. Fetching Page")
-                page = self.bufferPool.colMemPartial[i][0]
+                page = self.bufferPool.partialMemPages[i][0]
                 #print(f"[Table.insert] Got a partial page from memory. Page: {page.pageID}")
                 #print(f"[Table.insert] Calling page.write to write value ({value}) to page...")
                 index = page.write(value)
@@ -121,18 +125,18 @@ class Table:
                 #print(f"[Table.insert]     page.capacity: {page.hasCapacity()} - ")            
                 if not page.hasCapacity():
                     #print(f"[Table.insert] The page has no open spots. Appending to full...")                                         #IF THE PAGE IS FULL AFTER INSERT 
-                    self.bufferPool.colMemFull[i].append(page)
+                    self.bufferPool.fullMemPages[i].append(page)
                     #print(f"[Table.insert] Removing page from partial mem...")  
-                    self.bufferPool.colMemPartial[i].remove(page)
+                    self.bufferPool.partialMemPages[i].remove(page)
                     #print(f"[Table.insert] removed Page.") 
                     index = list(self.bufferPool.pageDirectory[page.pageID]) 
                     index[0] = 1
                     self.bufferPool.pageDirectory[page.pageID] = tuple(index)
             else: #no partials in memory
                 #print(f"[Table.insert] No partials in memory. Checking if there is a partial page on disk...")
-                if(len(self.bufferPool.colDiskPartial[i]) > 0):
+                if(len(self.bufferPool.partialDiskPages[i]) > 0):
                     #print(f"[Table.insert] Disk has a partial! Calling BP.getPage with PID: {page.pageID} - column: {i}")
-                    page = self.bufferPool.getPage(self.bufferPool.colDiskPartial[0].pageID, i)
+                    page = self.bufferPool.getPage(self.bufferPool.partialDiskPages[0].pageID, i)
                     #print(f"[Table.insert] Returned page ({page.pageID}) - writing {value}...")
                     index = page.write(value)
                     #print(f"[Table.insert] <debug>: reading that data at index {index} from the page...") 
@@ -144,9 +148,9 @@ class Table:
                     #print(f"[Table.insert] Checking if the page is full...")                                          
                     if(not page.hasCapacity()):
                         #print(f"[Table.insert] The page has no open spots. Appending to full...")                                         #IF THE PAGE IS FULL AFTER INSERT 
-                        self.bufferPool.colMemFull[i].append(page)
+                        self.bufferPool.fullMemPages[i].append(page)
                         #print(f"[Table.insert] Removing page from partial mem...")  
-                        self.bufferPool.colMemPartial[i].remove(page)
+                        self.bufferPool.partialMemPages[i].remove(page)
                         #print(f"[Table.insert] removed Page.")
                         index = list(self.bufferPool.pageDirectory[page.pageID]) 
                         index[0] = 1
@@ -164,9 +168,9 @@ class Table:
                     #print(f"[Table.insert] updated record_location: {record_location[i]}. Checking if the page has capacity.")            
                     if not page.hasCapacity():
                         #print(f"[Table.insert] Page is full appending to the full list") 
-                        self.bufferPool.colMemFull[i].append(page)
+                        self.bufferPool.fullMemPages[i].append(page)
                         #print(f"[Table.insert] Removing page from partial list") 
-                        self.bufferPool.colMemPartial[i].remove(page)
+                        self.bufferPool.partialMemPages[i].remove(page)
                         #print(f"[Table.insert] Page Removed")
                         index = list(self.bufferPool.pageDirectory[page.pageID]) 
                         index[0] = 1
@@ -186,7 +190,10 @@ class Table:
             self.index.pkl_index[int(columns[0][self.key])] = record_location
         #print(f"[Table.insert] Complete!")
         #print("============================")
-        
+
+
+        self.lock.release()
+
     def delete(self, primary_key):
         for loc in self.index.pkl_index[primary_key]:
              #loc = ((pid, idx) () () ())
@@ -212,6 +219,7 @@ class Table:
         key_location[primary_key].append(record_location)   #APPEND TO LIST OF LOCATIONS, ONLY UPDATED COLUMNS WILL HAVE NEW LOCATION
 
         """
+        self.lock.acquire()
         if primary_key not in self.index.pkl_index:
             return
 
@@ -257,6 +265,7 @@ class Table:
             file.write("Index\n") 
             file.write(str(self.index))
         #print(f"[Table.save] Save complete! Wrote data to file. Closing...")
+        self.lock.release()
     
     def load(self): 
         with open(f"{self.path}{self.name}.meta", "r") as file:
@@ -272,7 +281,7 @@ class Table:
                 if tuple_of_integers[0]: 
                     self.bufferPool.colDiskFull[colIdx].append(key) 
                 else:
-                    self.bufferPool.colDiskPartial[colIdx].append(key)
+                    self.bufferPool.partialDiskPages[colIdx].append(key)
                 line = file.readline()
             pkl_str = file.readline()   
             vk_str = file.readline() 
