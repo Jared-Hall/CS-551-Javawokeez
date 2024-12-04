@@ -46,8 +46,9 @@ class Database():
         self.log = setupLogger(False, "DEBUG", self.log, 4)
         self.tables = {} #Store name and tables as key:value
         self.path = './storage'
+        self.log.debug(f"Database constructor called. Database object created.")
 
-    # Not required for milestone1
+    
     def open(self, path):
         """
         path is a string reference to a folder name 
@@ -56,10 +57,10 @@ class Database():
         data included: tables
         table data: colDisk needs to be saved so we know which pages in disk are partial and full when reloaded 
         table data: key_rid locations map needs to be loaded 
-        
-        
         """
         self.path = path
+        self.log.debug(f"Open called: database path {self.path}")
+
 
     def close(self):
         """
@@ -67,10 +68,12 @@ class Database():
         all data is written to disk and colDisk indexes are updated to contain all pages
         save the colDisk indexes to disk to be used on reload 
         save the key_rid index to disk 
-        
         """
-        for name, table in self.tables.items():
+        self.log.debug(f"Close called! Saving all tables in the database...")
+        for tableName in self.tables:
             #Step-01: Write all memory to disk and close the table
+            self.log.debug(f"Saving database table: {tableName}")
+            table = self.tables[tableName]
             table.save()
 
     
@@ -81,7 +84,9 @@ class Database():
         :param num_columns: int     #Number of Columns: all columns are integer
         :param key: int             #Index of table key in columns
         """
-        bufferpool = BufferPool(num_columns, 10*num_columns)
+        self.log.debug(f"Create_table called! Creating table: {name} with {num_columns} columns. Primary Key index: {key_index}")
+        path = f"{self.path}/{name}/"
+        bufferpool = BufferPool(num_columns, path, 10*num_columns)
         table = Table(name, num_columns, key_index, bufferpool, self.path)
         self.tables[name] = table #Store the table
         return table
