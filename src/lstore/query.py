@@ -111,6 +111,12 @@ class Query:
             if(search_key_index == self.table.key): #we are searching using the primary key 
                 
                 #print(f"[Query.select_version] Searching for records with the primary key: {search_key}")
+                
+                if not self.table.lockManager.hasLock(search_key):
+                    self.table.lockManager.addLock(search_key)
+                
+                if not self.table.lockManager.acquireRLock(search_key):
+                    return
                 records = self.table.index.pkl_index[search_key]
                 #print(f"[Query.select_version] Records found with this key: {record}")
                 #print("RECORDS TO SELECT FROM: ", self.table.index.pkl_index[search_key])
@@ -132,7 +138,7 @@ class Query:
                     retVal.append(Record(search_key, self.FilterColumns(colToReturn, projected_columns_index)))
             if colToReturn[self.table.key] != search_key: 
                 t = 0
-            
+            self.table.lockManager.releaseRLock(search_key)
             #print(f"[Query.select_version] Select version done! Returning: {retVal}")
             return retVal
 

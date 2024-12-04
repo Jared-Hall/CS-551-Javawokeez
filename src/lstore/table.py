@@ -7,7 +7,7 @@ Description:
 """
 from lstore.index import Index
 from lstore.page import Page
-import threading
+from lstore.RWLocking import RWLockManager
 
 INDIRECTION_COLUMN = 0
 RID_COLUMN = 1
@@ -50,7 +50,7 @@ class Table:
         self.bufferPool = bufferPool
         self.bufferPool.path = self.path
 
-        self.lock = threading.Lock()
+        self.lockManager = RWLockManager()
 
     def insert(self, *columns):
         """
@@ -95,8 +95,12 @@ class Table:
 
         key_location[columns[0][0]] = [record_location]                     #INDEX THE LOCATION OF THE BASE RECORD EX: [((P-2, 0), (P-3, 3), (P-4, 2))]
         """
-
-        self.lock.acquire()
+        _key = int(columns[0][self.key])
+        if not self.lockManager.hasLock(_key):
+            self.lockManager.addLock(_key)
+        
+        if not self.lockManager.acquireWLock(_key):
+            return
         #print("\n\n========== Insert ==========")
         #print(f"[Table.insert] columns: {columns}")
         record_location = [[]]*self.num_columns
@@ -190,10 +194,8 @@ class Table:
             self.index.pkl_index[int(columns[0][self.key])] = record_location
         #print(f"[Table.insert] Complete!")
         #print("============================")
-
-
-        self.lock.release()
-
+        self.lockManager.releaseWLock(_key)
+        
     def delete(self, primary_key):
         for loc in self.index.pkl_index[primary_key]:
              #loc = ((pid, idx) () () ())
@@ -219,7 +221,7 @@ class Table:
         key_location[primary_key].append(record_location)   #APPEND TO LIST OF LOCATIONS, ONLY UPDATED COLUMNS WILL HAVE NEW LOCATION
 
         """
-        self.lock.acquire()
+        
         if primary_key not in self.index.pkl_index:
             return
 
@@ -240,6 +242,7 @@ class Table:
                 newColumns[i] = value 
 
         ##print("OLD, NEW", columns, newColumns)    
+        # Locking is taken care of in insert
         self.insert(tuple(newColumns)) 
     
     def save(self): 
@@ -265,7 +268,6 @@ class Table:
             file.write("Index\n") 
             file.write(str(self.index))
         #print(f"[Table.save] Save complete! Wrote data to file. Closing...")
-        self.lock.release()
     
     def load(self): 
         with open(f"{self.path}{self.name}.meta", "r") as file:

@@ -7,6 +7,9 @@ class RWLockManager:
     
     def addLock(self, key):
         self.locks[key] = RWLock()
+
+    def hasLock(self, key):
+        return key in self.locks
     
     def removeLock(self, key):
         del self.locks[key]
@@ -56,7 +59,7 @@ class RWLock:
             return False
         else:   
             self._activeWriters = True
-            self.lock.aquire()
+            self.lock.acquire()
             return True
 
     def release_w(self):
